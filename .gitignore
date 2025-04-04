@@ -1,0 +1,9 @@
+/.vs
+Testing/bin
+Testing/obj
+TestingClient/bin
+TestingClient/obj
+TestingServer/bin
+TestingServer/obj
+VoiceChatSharp/bin
+VoiceChatSharp/obj

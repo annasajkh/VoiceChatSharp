@@ -1,0 +1,200 @@
+﻿using LiteNetLib.Utils;
+using LiteNetLib;
+using VoiceChatSharp.Utils;
+using VoiceChatSharp.NetworkCommunicationData.Client;
+using VoiceChatSharp.NetworkPacket.ServerToClient;
+using VoiceChatSharp.Core;
+using DotNext;
+using Timer = System.Timers.Timer;
+using System.Timers;
+namespace VoiceChatSharp.Networking;
+
+public class VoiceChatClient : Network
+{
+    public NetDataWriter NetDataWriter { get; private set; } = new();
+    public bool IsInServer { get; private set; }
+
+    VoiceChatRecorder voiceChatRecorder = new();
+    VoiceChatPlayer voiceChatPlayer = new();
+
+    NetPeer? serverPeer;
+
+    public string Name { get; private set; }
+    public bool Muted { get; private set; }
+    public bool Deafened { get; private set; }
+    public byte Volume { get; private set; }
+
+    double joiningAttemptTime = 500;
+    int joiningAttempt = 6;
+    Timer joiningAttemptTimer;
+
+    public VoiceChatClient(string name, bool muted = false, bool deafened = false, byte volume = 100) : base(NetworkLoggerType.Client)
+    {
+        Name = name;
+        Muted = muted;
+        Deafened = deafened;
+        Volume = volume;
+
+        joiningAttemptTimer = new Timer(100);
+
+        networkLogger = new NetworkLogger(NetworkLoggerType.Client);
+
+        NetPacketProcessor.SubscribeNetSerializable<ServerToClientAClientJoiningPacket>(OnServerToClientAClientJoiningPacket);
+        NetPacketProcessor.SubscribeNetSerializable<ServerToClientEncodedAudioPacket>(OnServerToClientEncodedAudioPacket);
+        NetPacketProcessor.SubscribeNetSerializable<ServerToClientAClientLeftPacket>(OnServerToClientAClientLeftPacket);
+
+        Listener.NetworkReceiveEvent += OnNetworkReceive;
+        Listener.PeerDisconnectedEvent += OnPeerDisconnected;
+
+        joiningAttemptTimer.Elapsed += (object? source, ElapsedEventArgs elapsedEventArgs) =>
+        {
+            if (serverPeer is null)
+            {
+                networkLogger.LogError("Error server peer is null");
+                return;
+            }
+
+            ClientToServerAClientJoinPacket clientToServerJoiningPacket = new(name, Muted, Deafened, Volume);
+
+            // Joining Flow 1
+            networkLogger.LogInfo($"Attempting to join to the server with an address of {serverPeer}");
+            SendPacket(clientToServerJoiningPacket, serverPeer, DeliveryMethod.ReliableOrdered);
+
+            joiningAttempt--;
+
+            if (joiningAttempt == 0)
+            {
+                joiningAttemptTimer.Stop();
+                joiningAttemptTime = 500;
+                joiningAttempt = 6;
+                return;
+            }
+
+            joiningAttemptTime += 500;
+        };
+
+        joiningAttemptTimer.AutoReset = true;
+    }
+
+    public void Join(string address, int port, string key)
+    {
+        NetManager.Start();
+
+        NetPeer serverPeerTemp = NetManager.Connect(address, port, key);
+
+        if (serverPeerTemp is null)
+        {
+            networkLogger.LogWarning("There is already connection request awaiting of this client in the server the client is trying to connect");
+            return;
+        }
+
+        if (serverPeer is not null)
+        {
+            if (serverPeer != serverPeerTemp)
+            {
+                networkLogger.LogWarning("Already connected to different server");
+                return;
+            }
+
+            if (serverPeer == serverPeerTemp)
+            {
+                networkLogger.LogWarning("Already connected to the same server");
+                return;
+            }
+        }
+
+        serverPeer = serverPeerTemp;
+
+        joiningAttemptTimer.Start();
+    }
+
+    public void Leave()
+    {
+        if (serverPeer is null)
+        {
+            networkLogger.LogError("Can't disconnect you haven't connect to any server yet");
+            return;
+        }
+
+        NetManager.DisconnectPeer(serverPeer);
+        IsInServer = false;
+    }
+
+    public void OnServerToClientAClientJoiningPacket(ServerToClientAClientJoiningPacket serverToClientJoinedPacket)
+    {
+        //Joining Flow 3
+        networkLogger.LogInfo($"Succefully joined the server");
+
+        voiceChatRecorder.StartRecording();
+        IsInServer = true;
+        joiningAttemptTimer.Stop();
+    }
+
+    public void OnServerToClientAClientLeftPacket(ServerToClientAClientLeftPacket serverToClientAClientLeavedPacket)
+    {
+        if (voiceChatPlayer.ContainVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID))
+        {
+            networkLogger.LogInfo($"Client with id {serverToClientAClientLeavedPacket.ID} left");
+            voiceChatPlayer.RemoveVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID);
+        }
+        else
+        {
+            networkLogger.LogWarning("Cannot find client that disconnect locally there is a dync");
+        }
+    }
+
+    public void OnServerToClientEncodedAudioPacket(ServerToClientEncodedAudioPacket serverToClientEncodedAudioPacket)
+    {
+        if (voiceChatPlayer.ContainVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
+        {
+            voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+        }
+        else
+        {
+            voiceChatPlayer.AddVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID, new VoiceChatAudioSource(voiceChatPlayer));
+            voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+        }
+    }
+
+    public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
+    {
+        if (serverPeer == peer)
+        {
+            IsInServer = false;
+            networkLogger.LogInfo($"Disconnected from the server: {disconnectInfo.Reason}");
+        }
+        else
+        {
+            networkLogger.LogWarning("Disconnected from a server that is different than serverPeer there is a dsync");
+        }
+    }
+
+    public override void Update()
+    {
+        if (IsInServer && serverPeer is not null)
+        {
+            Result<byte[], VoiceChatRecorderErrorCode> encodedSampleResult = voiceChatRecorder.GetTheFirstEncodedSample();
+
+            if (!encodedSampleResult.TryGet(out byte[] encodedSample))
+            {
+                switch (encodedSampleResult.Error)
+                {
+                    case VoiceChatRecorderErrorCode.EncodedQueueIsEmpty:
+                        return;
+                    case VoiceChatRecorderErrorCode.CannotGetTheFirstEncodedSample:
+                        throw new Exception("Error: Cannot get the first encoded sample");
+                }
+            }
+
+            // Sending Encoded Audio Flow 1
+            SendPacket(new NetworkCommunicationPacket.ClientToServer.ClientToServerEncodedAudioPacket(encodedSampleResult.Value), serverPeer, DeliveryMethod.Sequenced);
+        }
+
+        base.Update();
+    }
+
+    private void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliveryMethod)
+    {
+        NetPacketProcessor.ReadAllPackets(reader);
+    }
+}
