@@ -1,38 +1,39 @@
 ﻿using LiteNetLib.Utils;
 
-namespace VoiceChatSharp.NetworkCommunicationData.Client;
-
-/// <summary>
-/// This packet is sended when the client want to join a server
-/// </summary>
-public struct ClientToServerAClientJoinPacket : INetSerializable
+namespace VoiceChatSharp.NetworkCommunicationData.Client
 {
-    public string Name { get; set; }
-    public bool Muted { get; set; }
-    public bool Deafened { get; set; }
-    public byte Volume { get; set; }
-
-    public ClientToServerAClientJoinPacket(string name, bool muted, bool deafened, byte volume)
+    /// <summary>
+    /// This packet is sended when the client want to join a server
+    /// </summary>
+    public struct ClientToServerAClientJoinPacket : INetSerializable
     {
-        Name = name;
-        Muted = muted;
-        Deafened = deafened;
-        Volume = volume;
-    }
+        public string Name { get; set; }
+        public bool Muted { get; set; }
+        public bool Deafened { get; set; }
+        public byte Volume { get; set; }
 
-    public void Serialize(NetDataWriter writer)
-    {
-        writer.Put(Name);
-        writer.Put(Muted);
-        writer.Put(Deafened);
-        writer.Put(Volume);
-    }
+        public ClientToServerAClientJoinPacket(string name, bool muted, bool deafened, byte volume)
+        {
+            Name = name;
+            Muted = muted;
+            Deafened = deafened;
+            Volume = volume;
+        }
 
-    public void Deserialize(NetDataReader reader)
-    {
-        Name = reader.GetString();
-        Muted = reader.GetBool();
-        Deafened = reader.GetBool();
-        Volume = reader.GetByte();
+        public void Serialize(NetDataWriter writer)
+        {
+            writer.Put(Name);
+            writer.Put(Muted);
+            writer.Put(Deafened);
+            writer.Put(Volume);
+        }
+
+        public void Deserialize(NetDataReader reader)
+        {
+            Name = reader.GetString();
+            Muted = reader.GetBool();
+            Deafened = reader.GetBool();
+            Volume = reader.GetByte();
+        }
     }
 }

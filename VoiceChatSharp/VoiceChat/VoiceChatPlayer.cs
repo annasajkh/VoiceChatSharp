@@ -1,57 +1,56 @@
-﻿using MiniAudioEx;
-using OpusSharp.Core;
+﻿using OpusSharp.Core;
+using VoiceChatSharp.Interfaces;
 
-namespace VoiceChatSharp.Core;
-
-public class VoiceChatPlayer : VoiceChat
+namespace VoiceChatSharp.Core
 {
-    public OpusDecoder OpusDecoder { get; private set; }
-
-    Dictionary<int, VoiceChatAudioSource> voiceChatAudioSources = new();
-
-    /// <summary>
-    /// The constructor.
-    /// </summary>
-    /// <param name="sampleRate">The sample rate, this must be one of 8000, 12000, 16000, 24000, or 48000.</param>
-    /// <param name="channels">The number of channels. Defaults to 2 (stereo).</param>
-    public VoiceChatPlayer(int sampleRate = 48000, int channels = 2) : base(sampleRate, channels)
+    public class VoiceChatPlayer : VoiceChat
     {
-        OpusDecoder = new OpusDecoder(sample_rate: sampleRate, channels: channels);
-    }
+        public OpusDecoder OpusDecoder { get; private set; }
 
+        AudioSourceInterface audioSourceInterface;
 
-    public void QueueEncodedSample(int id, byte[] encodedSample)
-    {
-        voiceChatAudioSources[id].QueueEncodedSample(encodedSample);
-    }
+        Dictionary<int, VoiceChatAudioSource> voiceChatAudioSources = new Dictionary<int, VoiceChatAudioSource>();
 
-    public bool ContainVoiceChatAudioSource(int id)
-    {
-        return voiceChatAudioSources.ContainsKey(id);
-    }
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        /// <param name="sampleRate">The sample rate, this must be one of 8000, 12000, 16000, 24000, or 48000.</param>
+        /// <param name="channels">The number of channels. Defaults to 2 (stereo).</param>
+        public VoiceChatPlayer(AudioSourceInterface audioSourceInterface) : base(audioSourceInterface.SampleRate, audioSourceInterface.Channels)
+        {
+            OpusDecoder = new OpusDecoder(sample_rate: audioSourceInterface.SampleRate, channels: audioSourceInterface.Channels);
+            this.audioSourceInterface = audioSourceInterface;
+        }
 
-    public void AddVoiceChatAudioSource(int id, VoiceChatAudioSource voiceChatAudioSource)
-    {
-        voiceChatAudioSources[id] = voiceChatAudioSource;
+        public void QueueEncodedSample(int id, byte[] encodedSample)
+        {
+            voiceChatAudioSources[id].QueueEncodedSample(encodedSample);
+        }
 
-        // FIXME: harcoded temp to test
-        voiceChatAudioSources[id].AudioSource.Volume = 2;
+        public bool ContainVoiceChatAudioSource(int id)
+        {
+            return voiceChatAudioSources.ContainsKey(id);
+        }
 
-        voiceChatAudioSource.Play();
-    }
+        public void AddVoiceChatAudioSource(int id)
+        {
+            voiceChatAudioSources[id] = new VoiceChatAudioSource(this, audioSourceInterface);
+            voiceChatAudioSources[id].Play();
+        }
 
-    public void RemoveVoiceChatAudioSource(int id)
-    {
-        voiceChatAudioSources[id].Stop();
-        voiceChatAudioSources[id].Dispose();
-        voiceChatAudioSources.Remove(id);
-    }
+        public void RemoveVoiceChatAudioSource(int id)
+        {
+            voiceChatAudioSources[id].Stop();
+            voiceChatAudioSources[id].Dispose();
+            voiceChatAudioSources.Remove(id);
+        }
 
-    /// <summary>
-    /// Dispose internal resources.
-    /// </summary>
-    public override void Dispose()
-    {
-        AudioContext.Deinitialize();
+        /// <summary>
+        /// Dispose internal resources.
+        /// </summary>
+        public override void Dispose()
+        {
+            OpusDecoder.Dispose();
+        }
     }
 }

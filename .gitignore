@@ -1,9 +1,11 @@
 /.vs
-Testing/bin
-Testing/obj
-TestingClient/bin
-TestingClient/obj
-TestingServer/bin
-TestingServer/obj
+VoiceChatSharp.TestingVoiceChat/bin
+VoiceChatSharp.TestingVoiceChat/obj
+VoiceChatSharp.TestingClient/bin
+VoiceChatSharp.TestingClient/obj
+VoiceChatSharp.TestingServer/bin
+VoiceChatSharp.TestingServer/obj
 VoiceChatSharp/bin
 VoiceChatSharp/obj
+VoiceChatSharp.DefaultImplementation/bin
+VoiceChatSharp.DefaultImplementation/obj

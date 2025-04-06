@@ -1,109 +1,103 @@
-﻿using DotNext;
-using OpusSharp.Core;
-using SoundFlow.Backends.MiniAudio;
-using SoundFlow.Components;
-using SoundFlow.Enums;
+﻿using OpusSharp.Core;
 using System.Buffers;
 using System.Collections.Concurrent;
+using VoiceChatSharp.Interfaces;
 
 
-
-namespace VoiceChatSharp.Core;
-
-public enum VoiceChatRecorderErrorCode
+namespace VoiceChatSharp.Core
 {
-    Success = 0,
-    EncodedQueueIsEmpty,
-    CannotGetTheFirstEncodedSample,
-}
-
-/// <summary>
-/// This class will record from a mic and encode it with opus.
-/// </summary>
-public class VoiceChatRecorder : VoiceChat
-{
-    MiniAudioEngine audioEngine;
-    Recorder recorder;
-    OpusEncoder opusEncoder;
-
-
-    ConcurrentQueue<byte[]> encodedSampleQueue = new();
-
-    /// <summary>
-    /// The constructor.
-    /// </summary>
-    /// <param name="sampleRate">The sample rate, this must be one of 8000, 12000, 16000, 24000, or 48000.</param>
-    /// <param name="channels">The number of channels. Defaults to 2 (stereo).</param>
-    public VoiceChatRecorder(int sampleRate = 48000, int channels = 2) : base(sampleRate, channels)
+    public enum VoiceChatRecorderErrorCode
     {
-        audioEngine = new MiniAudioEngine(sampleRate: sampleRate, channels: channels, capability: Capability.Record);
-        recorder = new Recorder(callback: OnAudioRead, sampleRate: sampleRate, channels: channels);
-
-        opusEncoder = new OpusEncoder(sample_rate: sampleRate, channels: channels, application: OpusPredefinedValues.OPUS_APPLICATION_VOIP);
+        Success = 0,
+        EncodedQueueIsEmpty,
+        CannotGetTheFirstEncodedSample,
     }
 
     /// <summary>
-    /// Get the first encoded sample recorded from the mic.
+    /// This class will record from a mic and encode it with opus.
     /// </summary>
-    /// <returns>The encoded sample.</returns>
-    public Result<byte[], VoiceChatRecorderErrorCode> GetTheFirstEncodedSample()
+    public class VoiceChatRecorder : VoiceChat
     {
-        if (encodedSampleQueue.Count is 0)
+        RecorderInterface recorderInterface;
+        OpusEncoder opusEncoder;
+
+        ConcurrentQueue<byte[]> encodedSampleQueue = new ConcurrentQueue<byte[]>();
+
+        /// <summary>
+        /// The constructor.
+        /// </summary>
+        /// <param name="sampleRate">The sample rate, this must be one of 8000, 12000, 16000, 24000, or 48000.</param>
+        /// <param name="channels">The number of channels. Defaults to 2 (stereo).</param>
+        public VoiceChatRecorder(RecorderInterface recorderInterface) : base(recorderInterface.SampleRate, recorderInterface.Channels)
         {
-            return new Result<byte[], VoiceChatRecorderErrorCode>(VoiceChatRecorderErrorCode.EncodedQueueIsEmpty);
+            this.recorderInterface = recorderInterface;
+            recorderInterface.OnAudioRead += OnAudioRead;
+
+            opusEncoder = new OpusEncoder(sample_rate: recorderInterface.SampleRate, channels: recorderInterface.Channels, application: OpusPredefinedValues.OPUS_APPLICATION_VOIP);
         }
 
-        if (!encodedSampleQueue.TryDequeue(out byte[]? result))
+        /// <summary>
+        /// Get the first encoded sample recorded from the mic.
+        /// </summary>
+        /// <returns>The encoded sample.</returns>
+        public byte[]? GetTheFirstEncodedSample()
         {
-            return new Result<byte[], VoiceChatRecorderErrorCode>(VoiceChatRecorderErrorCode.CannotGetTheFirstEncodedSample);
+            if (encodedSampleQueue.Count is 0)
+            {
+                //Logger.LogError("Encoded queue is empty");
+                return null;
+            }
+
+            if (!encodedSampleQueue.TryDequeue(out byte[]? result))
+            {
+                //Logger.LogError("Cannot get the first encoded sample");
+                return null;
+            }
+
+            return result;
         }
 
-        return result;
+        /// <summary>
+        /// Start mic recording.
+        /// </summary>
+        public void StartRecording()
+        {
+            recorderInterface.StartRecording();
+        }
+
+        /// <summary>
+        /// Stop mic recording.
+        /// </summary>
+        public void StopRecording()
+        {
+            recorderInterface.StopRecording();
+        }
+
+        /// <summary>
+        /// This method get called internally for each sample that is coming from the mic.
+        /// </summary>
+        /// <param name="samples">The sample span.</param>
+        void OnAudioRead(Span<float> samples)
+        {
+            using IMemoryOwner<byte> memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
+
+            Memory<byte> encodedOutput = memoryOwner.Memory;
+
+            int encodedOutputLength = opusEncoder.Encode(samples, SamplesPerFrame / Channels, encodedOutput.Span, encodedOutput.Length);
+
+            Memory<byte> encodedSlice = encodedOutput.Slice(0, encodedOutputLength);
+
+            encodedSampleQueue.Enqueue(encodedSlice.ToArray());
+        }
+
+        /// <summary>
+        /// Dispose internal resources.
+        /// </summary>
+        public override void Dispose()
+        {
+            recorderInterface.Dispose();
+            opusEncoder.Dispose();
+        }
     }
 
-    /// <summary>
-    /// Start mic recording.
-    /// </summary>
-    public void StartRecording()
-    {
-        recorder.StartRecording();
-    }
-
-    /// <summary>
-    /// Stop mic recording.
-    /// </summary>
-    public void StopRecording()
-    {
-        recorder.StopRecording();
-    }
-
-    /// <summary>
-    /// This method get called internally for each sample that is coming from the mic.
-    /// </summary>
-    /// <param name="samples">The sample span.</param>
-    /// <param name="capability">The capability of the audio engine.</param>
-    void OnAudioRead(Span<float> samples, Capability capability)
-    {
-        using IMemoryOwner<byte> memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
-
-        Memory<byte> encodedOutput = memoryOwner.Memory;
-
-        Console.WriteLine($"Sample length: {samples.Length}");
-
-        int encodedOutputLength = opusEncoder.Encode(samples, samples.Length / Channels, encodedOutput.Span, encodedOutput.Length);
-
-        Memory<byte> encodedSlice = encodedOutput.Slice(0, encodedOutputLength);
-
-        encodedSampleQueue.Enqueue(encodedSlice.ToArray());
-    }
-
-    /// <summary>
-    /// Dispose internal resources.
-    /// </summary>
-    public override void Dispose()
-    {
-        audioEngine.Dispose();
-        recorder.Dispose();
-        opusEncoder.Dispose();
-    }
 }

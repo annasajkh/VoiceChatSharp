@@ -1,6 +1,6 @@
 ﻿using VoiceChatSharp.Networking;
 
-namespace TestingServer;
+namespace VoiceChatSharp.TestingServer;
 
 internal class Program
 {

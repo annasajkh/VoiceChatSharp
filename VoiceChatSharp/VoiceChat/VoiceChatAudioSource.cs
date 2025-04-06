@@ -1,79 +1,85 @@
-﻿using MiniAudioEx;
-using OpusSharp.Core;
+﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using VoiceChatSharp.Exceptions;
+using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.Utils;
 
-namespace VoiceChatSharp.Core;
-
-public class VoiceChatAudioSource : IDisposable
+namespace VoiceChatSharp.Core
 {
-    public AudioSource AudioSource { get; private set; }
-
-    ConcurrentQueue<byte[]> encodedSampleQueue = new();
-    OpusDecoder opusDecoder;
-    int samplesPerFrame;
-
-    public VoiceChatAudioSource(VoiceChatPlayer voiceChatPlayer)
+    public class VoiceChatAudioSource : IDisposable
     {
-        this.opusDecoder = voiceChatPlayer.OpusDecoder;
-        this.samplesPerFrame = voiceChatPlayer.SamplesPerFrame;
+        AudioSourceInterface audioSourceInterface;
 
-        AudioSource = new AudioSource();
+        ConcurrentQueue<byte[]> encodedSampleQueue = new ConcurrentQueue<byte[]>();
+        OpusDecoder opusDecoder;
 
-        AudioSource.Read += OnAudioRead;
-    }
+        int samplesPerFrame;
 
-    /// <summary>
-    /// This method get called internally and for each sample it will get send to the default output device
-    /// </summary>
-    /// <param name="framesOut">The frame data.</param>
-    /// <param name="frameCount">The frameCount.</param>
-    /// <param name="channels">The number of channels.</param>
-    void OnAudioRead(AudioBuffer<float> framesOut, ulong frameCount, int channels)
-    {
-        if (encodedSampleQueue.Count is not 0)
+        public VoiceChatAudioSource(VoiceChatPlayer voiceChatPlayer, AudioSourceInterface audioSourceInterface)
         {
-            if (!encodedSampleQueue.TryDequeue(out byte[]? encodedSample))
+            opusDecoder = voiceChatPlayer.OpusDecoder;
+            samplesPerFrame = voiceChatPlayer.SamplesPerFrame;
+
+            this.audioSourceInterface = audioSourceInterface;
+
+            audioSourceInterface.OnAudioRead += OnAudioRead;
+        }
+
+        /// <summary>
+        /// This method get called internally and for each sample it will get send to the default output device
+        /// </summary>
+        /// <param name="samples">the samples</param>
+        /// <exception cref="SizeMismatchException"></exception>
+        void OnAudioRead(Span<float> samples)
+        {
+            if (encodedSampleQueue.Count != 0)
             {
-                throw new VoiceChatPlayerCannotDequeueException("Error: Cannot deqeue from the encoded queue");
-            }
-
-            Span<float> decodedSample = new float[samplesPerFrame].AsSpan();
-
-            int decodedSamples = opusDecoder.Decode(encodedSample, encodedSample.Length, decodedSample, samplesPerFrame, false);
-
-
-            unsafe
-            {
-                fixed (float* decodedSamplePtr = decodedSample)
+                if (!encodedSampleQueue.TryDequeue(out byte[]? encodedSample))
                 {
-                    NativeMemory.Copy(decodedSamplePtr, (void*)framesOut.Pointer, (nuint)(sizeof(float) * framesOut.Length));
+                    Logger.LogError("Cannot dequeue from the encoded queue, is it empty?");
+                    return;
                 }
+
+                Span<float> decodedSample = new float[samplesPerFrame].AsSpan();
+
+                opusDecoder.Decode(encodedSample, encodedSample.Length, decodedSample, samplesPerFrame, false);
+
+                if (samples.Length != decodedSample.Length)
+                {
+                    throw new SizeMismatchException("Size of the decoded sample and the expected sample size doesn't match!");
+                }
+
+                decodedSample.CopyTo(samples);
             }
         }
-    }
 
-    public void QueueEncodedSample(byte[] encodedSample)
-    {
-        encodedSampleQueue.Enqueue(encodedSample);
-    }
+        public void QueueEncodedSample(byte[] encodedSample)
+        {
+            encodedSampleQueue.Enqueue(encodedSample);
+        }
 
-    public void Play()
-    {
-        AudioSource.Play();
-    }
+        /// <summary>
+        /// Play the audio source
+        /// </summary>
+        public void Play()
+        {
+            audioSourceInterface.Play();
+        }
 
-    public void Stop()
-    {
-        AudioSource.Stop();
-    }
+        /// <summary>
+        /// Stop the audio source
+        /// </summary>
+        public void Stop()
+        {
+            audioSourceInterface.Stop();
+        }
 
-    /// <summary>
-    /// Dispose internal resources.
-    /// </summary>
-    public void Dispose()
-    {
-        AudioSource.Dispose();
+        /// <summary>
+        /// Dispose internal resources.
+        /// </summary>
+        public void Dispose()
+        {
+            audioSourceInterface.Dispose();
+        }
     }
 }

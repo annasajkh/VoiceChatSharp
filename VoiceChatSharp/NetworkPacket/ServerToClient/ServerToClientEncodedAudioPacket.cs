@@ -1,27 +1,28 @@
 ﻿using LiteNetLib.Utils;
 
-namespace VoiceChatSharp.NetworkPacket.ServerToClient;
-
-public struct ServerToClientEncodedAudioPacket : INetSerializable
+namespace VoiceChatSharp.NetworkPacket.ServerToClient
 {
-    public int ID { get; set; }
-    public byte[] Data { get; set; }
-
-    public ServerToClientEncodedAudioPacket(int id, byte[] data)
+    public struct ServerToClientEncodedAudioPacket : INetSerializable
     {
-        ID = id;
-        Data = data;
-    }
+        public int ID { get; set; }
+        public byte[] Data { get; set; }
 
-    public void Serialize(NetDataWriter writer)
-    {
-        writer.Put(ID);
-        writer.Put(Data);
-    }
+        public ServerToClientEncodedAudioPacket(int id, byte[] data)
+        {
+            ID = id;
+            Data = data;
+        }
 
-    public void Deserialize(NetDataReader reader)
-    {
-        ID = reader.GetInt();
-        Data = reader.GetRemainingBytes();
+        public void Serialize(NetDataWriter writer)
+        {
+            writer.Put(ID);
+            writer.Put(Data);
+        }
+
+        public void Deserialize(NetDataReader reader)
+        {
+            ID = reader.GetInt();
+            Data = reader.GetRemainingBytes();
+        }
     }
 }

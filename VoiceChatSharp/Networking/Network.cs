@@ -5,48 +5,50 @@ using VoiceChatSharp.Utils;
 using VoiceChatSharp.NetworkPacket.ServerToClient;
 using VoiceChatSharp.NetworkCommunicationPacket.ClientToServer;
 
-namespace VoiceChatSharp.Networking;
-
-public abstract class Network
+namespace VoiceChatSharp.Networking
 {
-    public EventBasedNetListener Listener { get; private set; }
-    public NetManager NetManager { get; private set; }
-    public NetPacketProcessor NetPacketProcessor { get; private set; }
-
-    private NetDataWriter netDataWriter;
-    protected NetworkLogger networkLogger;
-
-    public Network(NetworkLoggerType networkLoggerType)
+    public abstract class Network
     {
-        Listener = new EventBasedNetListener();
-        NetManager = new NetManager(Listener);
-        NetPacketProcessor = new NetPacketProcessor();
+        public EventBasedNetListener Listener { get; private set; }
+        public NetManager NetManager { get; private set; }
+        public NetPacketProcessor NetPacketProcessor { get; private set; }
 
-        netDataWriter = new NetDataWriter();
-        networkLogger = new NetworkLogger(networkLoggerType);
+        private NetDataWriter netDataWriter;
+        protected NetworkLogger networkLogger;
 
-        NetPacketProcessor.RegisterNestedType<ClientToServerAClientJoinPacket>();
-        NetPacketProcessor.RegisterNestedType<ClientToServerEncodedAudioPacket>();
+        public Network(NetworkLoggerType networkLoggerType)
+        {
+            Listener = new EventBasedNetListener();
+            NetManager = new NetManager(Listener);
+            NetPacketProcessor = new NetPacketProcessor();
 
-        NetPacketProcessor.RegisterNestedType<ServerToClientEncodedAudioPacket>();
-        NetPacketProcessor.RegisterNestedType<ServerToClientAClientJoiningPacket>();
-        NetPacketProcessor.RegisterNestedType<ServerToClientAClientLeftPacket>();
+            netDataWriter = new NetDataWriter();
+            networkLogger = new NetworkLogger(networkLoggerType);
+
+            NetPacketProcessor.RegisterNestedType<ClientToServerAClientJoinPacket>();
+            NetPacketProcessor.RegisterNestedType<ClientToServerEncodedAudioPacket>();
+
+            NetPacketProcessor.RegisterNestedType<ServerToClientEncodedAudioPacket>();
+            NetPacketProcessor.RegisterNestedType<ServerToClientAClientJoiningPacket>();
+            NetPacketProcessor.RegisterNestedType<ServerToClientAClientLeftPacket>();
+        }
+
+        public void SendPacket<T>(T packet, NetPeer peer, DeliveryMethod deliveryMethod) where T : INetSerializable
+        {
+            netDataWriter.Reset();
+            NetPacketProcessor.WriteNetSerializable(netDataWriter, ref packet);
+            peer.Send(netDataWriter, deliveryMethod);
+        }
+
+        public virtual void Update()
+        {
+            NetManager.PollEvents();
+        }
+
+        public void Stop()
+        {
+            NetManager.Stop();
+        }
     }
 
-    public void SendPacket<T>(T packet, NetPeer peer, DeliveryMethod deliveryMethod) where T : INetSerializable
-    {
-        netDataWriter.Reset();
-        NetPacketProcessor.WriteNetSerializable(netDataWriter, ref packet);
-        peer.Send(netDataWriter, deliveryMethod);
-    }
-
-    public virtual void Update()
-    {
-        NetManager.PollEvents();
-    }
-
-    public void Stop()
-    {
-        NetManager.Stop();
-    }
 }
