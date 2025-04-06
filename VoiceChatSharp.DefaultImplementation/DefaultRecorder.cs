@@ -84,7 +84,7 @@ public class DefaultRecorder : RecorderInterface
 
         unsafe
         {
-            SDL3.SDL_ResumeAudioDevice(deviceId);
+            SDL3.SDL_PauseAudioDevice(deviceId);
         }
     }
 
@@ -95,7 +95,7 @@ public class DefaultRecorder : RecorderInterface
 
         unsafe
         {
-            SDL3.SDL_ResumeAudioDevice(deviceId);
+            SDL3.SDL_CloseAudioDevice(deviceId);
         }
     }
 }
