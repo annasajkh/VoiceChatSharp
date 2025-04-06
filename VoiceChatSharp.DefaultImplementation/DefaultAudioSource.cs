@@ -20,7 +20,10 @@ public class DefaultAudioSource : AudioSourceInterface
 
             unsafe
             {
-                framesSpan = new Span<float>((void*)framesOut.Pointer, framesOut.Length);
+                int frameSizeMs = 20;
+                int samplesPerFrame = SampleRate * frameSizeMs / 1000;
+
+                framesSpan = new Span<float>((void*)framesOut.Pointer, samplesPerFrame);
             }
 
             OnAudioReadInternal(framesSpan);
