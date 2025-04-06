@@ -44,6 +44,12 @@ namespace VoiceChatSharp.Core
 
                 opusDecoder.Decode(encodedSample, encodedSample.Length, decodedSample, samplesPerFrame, false);
 
+                if (decodedSample.Length < samples.Length)
+                {
+                    decodedSample.CopyTo(samples);
+                    return;
+                }
+
                 if (decodedSample.Length != samples.Length)
                 {
                     throw new SizeMismatchException($"Size of the decoded sample ({decodedSample.Length}) and the expected sample ({samples.Length}) size doesn't match!");
