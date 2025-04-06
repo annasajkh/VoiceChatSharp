@@ -16,6 +16,8 @@ public class DefaultAudioSource : AudioSourceInterface
             
         AudioSource.Read += (AudioBuffer<float> framesOut, ulong frameCount, int channels) =>
         {
+            Console.WriteLine(frameCount);
+
             Span<float> framesSpan;
 
             unsafe
