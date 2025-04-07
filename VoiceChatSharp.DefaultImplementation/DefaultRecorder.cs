@@ -98,6 +98,7 @@ public class DefaultRecorder : RecorderInterface
 
         unsafe
         {
+            SDL3.SDL_DestroyAudioStream(audioStream);
             SDL3.SDL_CloseAudioDevice(deviceId);
         }
     }
