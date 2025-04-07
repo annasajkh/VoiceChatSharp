@@ -16,13 +16,14 @@ public class DefaultAudioSource : AudioSourceInterface
             
         AudioSource.Read += (AudioBuffer<float> framesOut, ulong frameCount, int channels) =>
         {
-            Console.WriteLine(frameCount);
+            int frameSizeMs = 20;
+            int samplesPerFrame = SampleRate * frameSizeMs / 1000;
 
             Span<float> framesSpan;
 
             unsafe
             {
-                framesSpan = new Span<float>((void*)framesOut.Pointer, (int)frameCount);
+                framesSpan = new Span<float>((void*)framesOut.Pointer, samplesPerFrame);
             }
 
             OnAudioReadInternal(framesSpan);
