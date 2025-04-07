@@ -20,6 +20,12 @@ internal class Program
 
         string? address = Console.ReadLine();
 
+        if (address is null)
+        {
+            Console.WriteLine("Using default server address of localhost with port 6969");
+            address = "localhost:6969";
+        }
+
         if (address.Trim() == "")
         {
             Console.WriteLine("Using default server address of localhost with port 6969");
