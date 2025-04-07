@@ -1,5 +1,4 @@
 ﻿using OpusSharp.Core;
-using System.Buffers;
 using System.Collections.Concurrent;
 using VoiceChatSharp.Interfaces;
 
@@ -79,13 +78,11 @@ namespace VoiceChatSharp.Core
         /// <param name="samples">The sample span.</param>
         void OnAudioRead(Span<float> samples)
         {
-            using IMemoryOwner<byte> memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
+            Span<byte> encodedOutput = stackalloc byte[1000];
 
-            Memory<byte> encodedOutput = memoryOwner.Memory;
+            int encodedOutputLength = opusEncoder.Encode(samples, SamplesPerFrame / Channels, encodedOutput, encodedOutput.Length);
 
-            int encodedOutputLength = opusEncoder.Encode(samples, SamplesPerFrame / Channels, encodedOutput.Span, encodedOutput.Length);
-
-            Memory<byte> encodedSlice = encodedOutput.Slice(0, encodedOutputLength);
+            Span<byte> encodedSlice = encodedOutput.Slice(0, encodedOutputLength);
 
             encodedSampleQueue.Enqueue(encodedSlice.ToArray());
         }

@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="JAJ.Packages.MiniAudioEx" Version="2.0.0" />
     <PackageReference Include="ppy.SDL3-CS" Version="2025.220.0" />
   </ItemGroup>
 

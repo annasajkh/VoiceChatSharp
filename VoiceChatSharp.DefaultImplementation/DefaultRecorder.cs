@@ -17,13 +17,13 @@ public class DefaultRecorder : RecorderInterface
 
     public DefaultRecorder(int sampleRate = 48000, int channels = 2) : base(sampleRate, channels)
     {
+        int frameSizeMs = 20;
+        samplesPerFrame = SampleRate * frameSizeMs / 1000;
+
         if (!SDL3.SDL_Init(SDL_InitFlags.SDL_INIT_AUDIO))
         {
             throw new Exception($"Cannot init sdl audio: {SDL3.SDL_GetError()}");
         }
-
-        int frameSizeMs = 20;
-        samplesPerFrame = SampleRate * frameSizeMs / 1000;
 
         SDL_AudioSpec audioSpec = new();
         audioSpec.format = SDL3.SDL_AUDIO_F32;
@@ -56,25 +56,28 @@ public class DefaultRecorder : RecorderInterface
         pollingThread.Start();
     }
 
-    private unsafe void PollAudio()
+    private void PollAudio()
     {
-        nint bufferPtr = (nint)NativeMemory.Alloc((nuint)(samplesPerFrame * sizeof(float)));
-
-        while (isRecording)
+        unsafe
         {
-            if (SDL3.SDL_GetAudioStreamAvailable(audioStream) != 0)
-            {
-                int bytesRead = SDL3.SDL_GetAudioStreamData(audioStream, bufferPtr, samplesPerFrame * sizeof(float));
+            nint bufferPtr = (nint)NativeMemory.Alloc((nuint)(samplesPerFrame * sizeof(float)));
 
-                if (bytesRead > 0)
+            while (isRecording)
+            {
+                if (SDL3.SDL_GetAudioStreamAvailable(audioStream) != 0)
                 {
-                    Span<float> rawAudioData = new Span<float>((void*)bufferPtr, samplesPerFrame);
-                    OnAudioReadInternal(rawAudioData);
+                    int bytesRead = SDL3.SDL_GetAudioStreamData(audioStream, bufferPtr, samplesPerFrame * sizeof(float));
+
+                    if (bytesRead > 0)
+                    {
+                        Span<float> rawAudioData = new Span<float>((void*)bufferPtr, samplesPerFrame);
+                        OnAudioReadInternal(rawAudioData);
+                    }
                 }
             }
-        }
 
-        NativeMemory.Free((void*)bufferPtr);
+            NativeMemory.Free((void*)bufferPtr);
+        }
     }
 
     public override void StopRecording()

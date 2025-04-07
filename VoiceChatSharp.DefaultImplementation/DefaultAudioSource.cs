@@ -1,33 +1,48 @@
-﻿using MiniAudioEx;
+﻿using SDL;
 using System;
+using System.Runtime.InteropServices;
+using System.Threading;
 using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation;
 
 public class DefaultAudioSource : AudioSourceInterface
 {
-    public AudioSource AudioSource { get; private set; }
+    unsafe SDL_AudioStream* audioStream;
+    Thread pollingThread;
+    bool isPlaying;
+    SDL_AudioDeviceID deviceId;
+
+    int samplesPerFrame;
+
 
     public DefaultAudioSource(int sampleRate = 48000, int channels = 2) : base(sampleRate, channels)
     {
-        AudioContext.Initialize((uint)SampleRate, (uint)Channels);
+        int frameSizeMs = 20;
+        samplesPerFrame = SampleRate * frameSizeMs / 1000;
 
-        AudioSource = new AudioSource();
-            
-        AudioSource.Read += (AudioBuffer<float> framesOut, ulong frameCount, int channels) =>
+        if (!SDL3.SDL_Init(SDL_InitFlags.SDL_INIT_AUDIO))
         {
-            int frameSizeMs = 20;
-            int samplesPerFrame = SampleRate * frameSizeMs / 1000;
+            throw new Exception($"Cannot init sdl audio: {SDL3.SDL_GetError()}");
+        }
 
-            Span<float> framesSpan;
+        SDL_AudioSpec audioSpec = new();
+        audioSpec.format = SDL3.SDL_AUDIO_F32;
+        audioSpec.freq = SampleRate;
+        audioSpec.channels = Channels;
 
-            unsafe
+        unsafe
+        {
+            audioStream = SDL3.SDL_OpenAudioDeviceStream(SDL3.SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audioSpec, null, nint.Zero);
+
+            if (audioStream == null)
             {
-                framesSpan = new Span<float>((void*)framesOut.Pointer, samplesPerFrame);
+                throw new Exception($"Failed to open audio device: {SDL3.SDL_GetError()}");
             }
 
-            OnAudioReadInternal(framesSpan);
-        };
+            deviceId = SDL3.SDL_GetAudioStreamDevice(audioStream);
+        }
     }
 
     /// <summary>
@@ -35,7 +50,41 @@ public class DefaultAudioSource : AudioSourceInterface
     /// </summary>
     public override void Play()
     {
-        AudioSource.Play();
+        unsafe
+        {
+            SDL3.SDL_ResumeAudioDevice(deviceId);
+        }
+
+        isPlaying = true;
+        pollingThread = new Thread(PollAudio);
+        pollingThread.Start();
+    }
+
+    private void PollAudio()
+    {
+        unsafe
+        {
+            nint bufferPtr = (nint)NativeMemory.Alloc((nuint)(samplesPerFrame * sizeof(float)));
+
+            while (isPlaying)
+            {
+                int minimumAudio = (samplesPerFrame * sizeof(float));
+
+                if (SDL3.SDL_GetAudioStreamQueued(audioStream) < minimumAudio)
+                {
+                    OnAudioReadInternal(new Span<float>((void*)bufferPtr, samplesPerFrame));
+
+                    SDLBool canPutAudioStreamData = SDL3.SDL_PutAudioStreamData(audioStream, (nint)bufferPtr, samplesPerFrame * sizeof(float));
+
+                    if (!canPutAudioStreamData)
+                    {
+                        Logger.LogWarning("Warning cannot send audio stream data to sdl");
+                    }
+                }
+            }
+
+            NativeMemory.Free((void*)bufferPtr);
+        }
     }
 
     /// <summary>
@@ -43,7 +92,13 @@ public class DefaultAudioSource : AudioSourceInterface
     /// </summary>
     public override void Stop()
     {
-        AudioSource.Stop();
+        isPlaying = false;
+        pollingThread?.Join();
+
+        unsafe
+        {
+            SDL3.SDL_PauseAudioDevice(deviceId);
+        }
     }
 
     /// <summary>
@@ -51,6 +106,12 @@ public class DefaultAudioSource : AudioSourceInterface
     /// </summary>
     public override void Dispose()
     {
-        AudioSource.Dispose();
+        isPlaying = false;
+        pollingThread?.Join();
+
+        unsafe
+        {
+            SDL3.SDL_CloseAudioDevice(deviceId);
+        }
     }
 }

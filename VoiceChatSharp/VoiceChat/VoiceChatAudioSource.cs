@@ -40,16 +40,7 @@ namespace VoiceChatSharp.Core
                     return;
                 }
 
-                Span<float> decodedSample = new float[samplesPerFrame].AsSpan();
-
-                opusDecoder.Decode(encodedSample, encodedSample.Length, decodedSample, samplesPerFrame, false);
-
-                if (decodedSample.Length != samples.Length)
-                {
-                    throw new SizeMismatchException($"Size of the decoded sample ({decodedSample.Length}) and the expected sample ({samples.Length}) size doesn't match!");
-                }
-
-                decodedSample.CopyTo(samples);
+                opusDecoder.Decode(encodedSample, encodedSample.Length, samples, samplesPerFrame, false);
             }
         }
 
