@@ -1,8 +1,8 @@
 /.vs
 /bin
 /obj
-Miniaudio-CS/bin
-Miniaudio-CS/obj
+Miniaudio-CS/Miniaudio-CS/bin
+Miniaudio-CSMiniaudio-CS/obj
 RNNoise.NET/bin
 RNNoise.NET/obj
 VoiceChatSharp.TestingVoiceChat/bin
