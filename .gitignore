@@ -1,4 +1,10 @@
 /.vs
+/bin
+/obj
+Miniaudio-CS/bin
+Miniaudio-CS/obj
+RNNoise.NET/bin
+RNNoise.NET/obj
 VoiceChatSharp.TestingVoiceChat/bin
 VoiceChatSharp.TestingVoiceChat/obj
 VoiceChatSharp.TestingClient/bin
