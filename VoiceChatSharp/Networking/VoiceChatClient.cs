@@ -7,12 +7,13 @@ using VoiceChatSharp.Core;
 using Timer = System.Timers.Timer;
 using System.Timers;
 using VoiceChatSharp.NetworkCommunicationPacket.ClientToServer;
+using VoiceChatSharp.Interfaces;
 
 namespace VoiceChatSharp.Networking
 {
-    public class VoiceChatClient : Network
+    public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioSourceInterface, new()
     {
-        public NetDataWriter NetDataWriter { get; private set; } = new NetDataWriter();
+        public NetDataWriter NetDataWriter { get; private set; } = new();
         public bool IsInServer { get; private set; }
 
         VoiceChatRecorder voiceChatRecorder;
@@ -130,13 +131,14 @@ namespace VoiceChatSharp.Networking
             networkLogger.LogInfo($"Successfully joined the server");
 
             voiceChatRecorder.StartRecording();
+            voiceChatPlayer.Play();
             IsInServer = true;
             joiningAttemptTimer.Stop();
         }
 
         public void OnServerToClientAClientLeftPacket(ServerToClientAClientLeftPacket serverToClientAClientLeavedPacket)
         {
-            if (voiceChatPlayer.ContainVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID))
+            if (voiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID))
             {
                 networkLogger.LogInfo($"Client with id {serverToClientAClientLeavedPacket.ID} left");
                 voiceChatPlayer.RemoveVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID);
@@ -149,13 +151,13 @@ namespace VoiceChatSharp.Networking
 
         public void OnServerToClientEncodedAudioPacket(ServerToClientEncodedAudioPacket serverToClientEncodedAudioPacket)
         {
-            if (voiceChatPlayer.ContainVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
+            if (voiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
             {
                 voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
             }
             else
             {
-                voiceChatPlayer.AddVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID);
+                voiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
                 voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
             }
         }
@@ -194,6 +196,12 @@ namespace VoiceChatSharp.Networking
         private void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliveryMethod)
         {
             NetPacketProcessor.ReadAllPackets(reader);
+        }
+
+        public void Dispose()
+        {
+            voiceChatRecorder.Dispose();
+            voiceChatPlayer.Dispose();
         }
     }
 

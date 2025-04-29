@@ -7,11 +7,27 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultRecorder());
-        VoiceChatPlayer voiceChatPlayer = new VoiceChatPlayer(new DefaultAudioSource());
+        Random random = new();
+
+        using VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultVoiceChatRecorder());
+        using VoiceChatPlayer voiceChatPlayer = new VoiceChatPlayer(new DefaultVoiceChatPlayer());
 
         voiceChatRecorder.StartRecording();
-        voiceChatPlayer.AddVoiceChatAudioSource(0);
+
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
+        voiceChatPlayer.Play();
+
+        List<string> audioDeviceNames = voiceChatRecorder.GetRecordingDeviceNames();
+
+        Task.Factory.StartNew(() =>
+        {
+            while (true)
+            {
+                Thread.Sleep(random.Next() % 100);
+                voiceChatRecorder.SetCurrentRecordingDevice(audioDeviceNames[random.Next() % audioDeviceNames.Count]);
+                Console.WriteLine($"Current recording device is {voiceChatRecorder.GetCurrentRecordingDeviceName()}");
+            }
+        });
 
         while (true)
         {
@@ -22,7 +38,9 @@ internal class Program
                 continue;
             }
 
-            voiceChatPlayer.QueueEncodedSample(0, encodedSample);
+            Console.WriteLine(encodedSample.Length);
+
+            //voiceChatPlayer.QueueEncodedSample(0, encodedSample);
         }
     }
 }

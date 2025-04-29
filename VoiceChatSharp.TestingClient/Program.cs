@@ -36,9 +36,9 @@ internal class Program
 
         Console.WriteLine($"Connecting to {addressArr[0]}:{addressArr[1]} with name {name}");
 
-        VoiceChatClient voiceChatClient = new(new VoiceChatRecorder(new DefaultRecorder()), new VoiceChatPlayer(new DefaultAudioSource()), name);
+        using var voiceChatClient = new VoiceChatClient<DefaultVoiceChatAudioSource>(new VoiceChatRecorder(new DefaultVoiceChatRecorder()), new VoiceChatPlayer(new DefaultVoiceChatPlayer()), name);
 
-        voiceChatClient.Join(addressArr[0], int.Parse(addressArr[1]), "catto");
+        voiceChatClient.Join(addressArr[0], int.Parse(addressArr[1]), "cat");
 
         Console.WriteLine("Press any key to leave...");
         while (!Console.KeyAvailable)

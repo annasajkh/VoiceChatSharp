@@ -6,7 +6,7 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        VoiceChatServer voiceChatServer = new("catto");
+        VoiceChatServer voiceChatServer = new("cat");
         voiceChatServer.Start(6969);
 
         while (!Console.KeyAvailable)

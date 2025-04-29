@@ -1,16 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ppy.SDL3-CS" Version="2025.220.0" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\Miniaudio-CS\Miniaudio-CS\Miniaudio-CS.csproj" />
     <ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
   </ItemGroup>
 

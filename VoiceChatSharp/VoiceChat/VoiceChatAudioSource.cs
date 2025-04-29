@@ -1,52 +1,28 @@
-﻿using OpusSharp.Core;
-using System.Collections.Concurrent;
-using VoiceChatSharp.Exceptions;
-using VoiceChatSharp.Interfaces;
-using VoiceChatSharp.Utils;
+﻿using VoiceChatSharp.Interfaces;
 
 namespace VoiceChatSharp.Core
 {
     public class VoiceChatAudioSource : IDisposable
-    {
-        AudioSourceInterface audioSourceInterface;
+    {        
+        public VoiceChatAudioSourceInterface VoiceChatAudioSourceInterface { get; private set; }
 
-        ConcurrentQueue<byte[]> encodedSampleQueue = new ConcurrentQueue<byte[]>();
-        OpusDecoder opusDecoder;
-
-        int samplesPerFrame;
-
-        public VoiceChatAudioSource(VoiceChatPlayer voiceChatPlayer, AudioSourceInterface audioSourceInterface)
+        public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
         {
-            opusDecoder = voiceChatPlayer.OpusDecoder;
-            samplesPerFrame = voiceChatPlayer.SamplesPerFrame;
+            VoiceChatAudioSourceInterface = voiceChatAudioSourceInterface;
+        }
 
-            this.audioSourceInterface = audioSourceInterface;
-
-            audioSourceInterface.OnAudioRead += OnAudioRead;
+        public void EnqueueEncodedSample(byte[] encodedSample)
+        {
+            VoiceChatAudioSourceInterface.EncodedSampleQueue.Enqueue(encodedSample);
         }
 
         /// <summary>
-        /// This method get called internally and for each sample it will get send to the default output device
+        /// Set the volume of the audio source
         /// </summary>
-        /// <param name="samples">the samples</param>
-        /// <exception cref="SizeMismatchException"></exception>
-        void OnAudioRead(Span<float> samples)
+        /// <param name="volume">The volume</param>
+        public void SetVolume(float volume)
         {
-            if (encodedSampleQueue.Count != 0)
-            {
-                if (!encodedSampleQueue.TryDequeue(out byte[]? encodedSample))
-                {
-                    Logger.LogError("Cannot dequeue from the encoded queue, is it empty?");
-                    return;
-                }
-
-                opusDecoder.Decode(encodedSample, encodedSample.Length, samples, samplesPerFrame, false);
-            }
-        }
-
-        public void QueueEncodedSample(byte[] encodedSample)
-        {
-            encodedSampleQueue.Enqueue(encodedSample);
+            VoiceChatAudioSourceInterface.SetVolume(volume);
         }
 
         /// <summary>
@@ -54,15 +30,20 @@ namespace VoiceChatSharp.Core
         /// </summary>
         public void Play()
         {
-            audioSourceInterface.Play();
+            VoiceChatAudioSourceInterface.Play();
+        }
+
+        public void Update()
+        {
+            VoiceChatAudioSourceInterface.Update();
         }
 
         /// <summary>
-        /// Stop the audio source
+        /// Pause the audio source
         /// </summary>
-        public void Stop()
+        public void Pause()
         {
-            audioSourceInterface.Stop();
+            VoiceChatAudioSourceInterface.Pause();
         }
 
         /// <summary>
@@ -70,7 +51,7 @@ namespace VoiceChatSharp.Core
         /// </summary>
         public void Dispose()
         {
-            audioSourceInterface.Dispose();
+            VoiceChatAudioSourceInterface.Dispose();
         }
     }
 }

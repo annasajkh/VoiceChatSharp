@@ -5,17 +5,12 @@
         /// <summary>
         /// The sample rate, this must be one of 8000, 12000, 16000, 24000, or 48000
         /// </summary>
-        public int SampleRate { get; private set; }
+        public int SampleRate { get; protected set; }
 
         /// <summary>
         /// The number of channels. Defaults to 2 (stereo).
         /// </summary>
-        public int Channels { get; private set; }
-
-        /// <summary>
-        /// The sample per frame
-        /// </summary>
-        public int SamplesPerFrame { get; private set; }
+        public int Channels { get; protected set; }
 
         public VoiceChat(int sampleRate, int channels)
         {
@@ -31,10 +26,6 @@
 
             SampleRate = sampleRate;
             Channels = channels;
-
-
-            int frameSizeMs = 20;
-            SamplesPerFrame = SampleRate * frameSizeMs / 1000;
         }
 
 

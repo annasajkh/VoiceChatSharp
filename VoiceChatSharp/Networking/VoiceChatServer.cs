@@ -10,7 +10,7 @@ namespace VoiceChatSharp.Networking
 {
     public class VoiceChatServer : Network
     {
-        Dictionary<int, ClientData> clients = new Dictionary<int, ClientData>();
+        Dictionary<int, ClientData> clients = new();
         public string Key { get; private set; }
 
         public VoiceChatServer(string key) : base(NetworkLoggerType.Server)
