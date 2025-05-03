@@ -1,5 +1,4 @@
 ﻿using OpusSharp.Core;
-using RNNoise.NET;
 using System.Collections.Concurrent;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
@@ -21,7 +20,6 @@ namespace VoiceChatSharp.VoiceChat
     {
         VoiceChatRecorderInterface recorderInterface;
         OpusEncoder opusEncoder;
-        Denoiser denoiser = new();
 
         public ConcurrentQueue<byte[]> encodedSamplesQueue = new();
         
@@ -34,14 +32,13 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         /// <param name="recorderInterface">The recorder interface to use</param>
         /// <param name="useNoiseSuppression">whenever using noise suppression or not it uses RNNoise library</param>
-        public VoiceChatRecorder(VoiceChatRecorderInterface recorderInterface, bool useNoiseSuppression = true) : base(recorderInterface.SampleRate, recorderInterface.Channels, recorderInterface.BytesPerSample)
+        public VoiceChatRecorder(VoiceChatRecorderInterface recorderInterface) : base(recorderInterface.SampleRate, recorderInterface.Channels, recorderInterface.BytesPerSample)
         {
             this.recorderInterface = recorderInterface;
             recorderInterface.OnSampleRead += OnSampleRead;
 
             opusEncoder = new OpusEncoder(sample_rate: recorderInterface.SampleRate, channels: recorderInterface.Channels, application: OpusPredefinedValues.OPUS_APPLICATION_VOIP);
 
-            this.useNoiseSuppression = useNoiseSuppression;
 
             encodedSamples = new byte[1000];
         }
@@ -124,11 +121,6 @@ namespace VoiceChatSharp.VoiceChat
         /// <param name="samples">The samples span.</param>
         void OnSampleRead(Span<float> samples)
         {
-            if (useNoiseSuppression)
-            {
-                denoiser.Denoise(samples);
-            }
-
             Span<byte> encodedOutputSpan = new Span<byte>(encodedSamples);
 
             int encodedOutputLength = opusEncoder.Encode(samples, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float) / Channels, encodedSamples, encodedSamples.Length);

@@ -13,9 +13,5 @@
     <PackageReference Include="OpusSharp" Version="1.5.6" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\RNNoise.NET\RNNoise.NET.csproj" />
-  </ItemGroup>
-
 
 </Project>

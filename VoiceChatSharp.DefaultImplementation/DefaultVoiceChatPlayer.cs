@@ -150,6 +150,8 @@ namespace VoiceChatSharp.DefaultImplementation
 
         unsafe void WriteSample(ma_device* pDevice, void* pOutput, void* pInput, uint frameCount)
         {
+            int totalSamplesBytes = Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample);
+
             foreach (VoiceChatAudioSource VoiceChatAudioSource in VoiceChatAudioSources.Values)
             {
                 if (!VoiceChatAudioSource.VoiceChatAudioSourceInterface.DecodedSamplesQueue.TryDequeue(out float[] decodedSample))
@@ -162,7 +164,7 @@ namespace VoiceChatSharp.DefaultImplementation
                     fixed (float* mixedSamplePtr = mixedSample)
                     fixed (float* decodedSamplePtr = decodedSample)
                     {
-                        ma.mix_pcm_frames_f32(mixedSamplePtr, decodedSamplePtr, (ulong)(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float) / Channels), (uint)Channels, Volume);
+                        ma.mix_pcm_frames_f32(mixedSamplePtr, decodedSamplePtr, (ulong)(totalSamplesBytes / sizeof(float) / Channels), (uint)Channels, Volume);
                     }
                 }
             }
@@ -171,7 +173,7 @@ namespace VoiceChatSharp.DefaultImplementation
             {
                 fixed (void* mixedSamplePtr = mixedSample)
                 {
-                    Buffer.MemoryCopy(mixedSamplePtr, pOutput, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample), Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
+                    Buffer.MemoryCopy(mixedSamplePtr, pOutput, totalSamplesBytes, totalSamplesBytes);
                 }
             }
 

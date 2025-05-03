@@ -45,15 +45,17 @@ namespace VoiceChatSharp.VoiceChat
 
             Span<float> decodedSamples;
 
+            int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
+
             unsafe
             {
                 lock (VoiceChatAudioSourceInterface.DecodedSamplesPtrLock)
                 {
-                    decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample) / sizeof(float));
+                    decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
                 }
             }
 
-            VoiceChatAudioSourceInterface.OpusDecoder.Decode(samples, samples.Length, decodedSamples, Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample) / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
+            VoiceChatAudioSourceInterface.OpusDecoder.Decode(samples, samples.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
             VoiceChatAudioSourceInterface.Update();
         }
 

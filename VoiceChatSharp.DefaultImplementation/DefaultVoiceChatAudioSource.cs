@@ -25,12 +25,13 @@ namespace VoiceChatSharp.DefaultImplementation
             }
 
             Span<float> decodedSamples;
+            int totalSamplesBytes = Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample);
 
             unsafe
             {
                 lock (DecodedSamplesPtrLock)
                 {
-                    decodedSamples = new Span<float>((void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float));
+                    decodedSamples = new Span<float>((void*)DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
                 }
             }
 
@@ -38,7 +39,7 @@ namespace VoiceChatSharp.DefaultImplementation
             {
                 lock (DecodedSamplesPtrLock)
                 {
-                    ma.apply_volume_factor_pcm_frames_f32((float*)DecodedSamplesPtr, (ulong)(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float)), (uint)Channels, Volume);
+                    ma.apply_volume_factor_pcm_frames_f32((float*)DecodedSamplesPtr, (ulong)(totalSamplesBytes / sizeof(float) / Channels), (uint)Channels, Volume);
                 }
             }
 
