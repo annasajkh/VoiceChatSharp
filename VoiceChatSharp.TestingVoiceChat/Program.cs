@@ -9,7 +9,7 @@ internal class Program
     {
         Random random = new();
 
-        using VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultVoiceChatRecorder());
+        using VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultVoiceChatRecorder(), useNoiseSuppression: false);
         using VoiceChatPlayer voiceChatPlayer = new VoiceChatPlayer(new DefaultVoiceChatPlayer());
 
         voiceChatRecorder.StartRecording();
