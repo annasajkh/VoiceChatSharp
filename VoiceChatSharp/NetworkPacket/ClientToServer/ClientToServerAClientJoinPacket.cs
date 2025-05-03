@@ -1,6 +1,6 @@
 ﻿using LiteNetLib.Utils;
 
-namespace VoiceChatSharp.NetworkCommunicationData.Client
+namespace VoiceChatSharp.NetworkPacket.ClientToServer
 {
     /// <summary>
     /// This packet is sended when the client want to join a server

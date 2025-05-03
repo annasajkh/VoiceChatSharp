@@ -1,6 +1,6 @@
 ﻿using LiteNetLib.Utils;
 
-namespace VoiceChatSharp.NetworkCommunicationPacket.ClientToServer
+namespace VoiceChatSharp.NetworkPacket.ClientToServer
 {
     public struct ClientToServerEncodedAudioPacket : INetSerializable
     {

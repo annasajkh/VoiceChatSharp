@@ -1,9 +1,11 @@
-﻿using VoiceChatSharp.Interfaces;
+﻿using System.Runtime.InteropServices;
+using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.Utils;
 
-namespace VoiceChatSharp.Core
+namespace VoiceChatSharp.VoiceChat
 {
     public class VoiceChatAudioSource : IDisposable
-    {        
+    {
         public VoiceChatAudioSourceInterface VoiceChatAudioSourceInterface { get; private set; }
 
         public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
@@ -13,8 +15,9 @@ namespace VoiceChatSharp.Core
 
         public void EnqueueEncodedSample(byte[] encodedSample)
         {
-            VoiceChatAudioSourceInterface.EncodedSampleQueue.Enqueue(encodedSample);
+            VoiceChatAudioSourceInterface.EncodedSamplesQueue.Enqueue(encodedSample);
         }
+
 
         /// <summary>
         /// Set the volume of the audio source
@@ -22,7 +25,7 @@ namespace VoiceChatSharp.Core
         /// <param name="volume">The volume</param>
         public void SetVolume(float volume)
         {
-            VoiceChatAudioSourceInterface.SetVolume(volume);
+            VoiceChatAudioSourceInterface.Volume = volume;
         }
 
         /// <summary>
@@ -30,11 +33,27 @@ namespace VoiceChatSharp.Core
         /// </summary>
         public void Play()
         {
-            VoiceChatAudioSourceInterface.Play();
+            VoiceChatAudioSourceInterface.Playing = true;
         }
 
         public void Update()
         {
+            if (!VoiceChatAudioSourceInterface.EncodedSamplesQueue.TryDequeue(out byte[]? samples))
+            {
+                return;
+            }
+
+            Span<float> decodedSamples;
+
+            unsafe
+            {
+                lock (VoiceChatAudioSourceInterface.DecodedSamplesPtrLock)
+                {
+                    decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample) / sizeof(float));
+                }
+            }
+
+            VoiceChatAudioSourceInterface.OpusDecoder.Decode(samples, samples.Length, decodedSamples, Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample) / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
             VoiceChatAudioSourceInterface.Update();
         }
 
@@ -43,7 +62,7 @@ namespace VoiceChatSharp.Core
         /// </summary>
         public void Pause()
         {
-            VoiceChatAudioSourceInterface.Pause();
+            VoiceChatAudioSourceInterface.Playing = false;
         }
 
         /// <summary>
@@ -51,6 +70,12 @@ namespace VoiceChatSharp.Core
         /// </summary>
         public void Dispose()
         {
+
+            lock (VoiceChatAudioSourceInterface.DecodedSamplesPtrLock)
+            {
+                Marshal.FreeHGlobal(VoiceChatAudioSourceInterface.DecodedSamplesPtr);
+            }
+
             VoiceChatAudioSourceInterface.Dispose();
         }
     }

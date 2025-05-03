@@ -5,7 +5,7 @@ using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
 
-namespace VoiceChatSharp.Core
+namespace VoiceChatSharp.VoiceChat
 {
     public enum VoiceChatRecorderErrorCode
     {
@@ -23,10 +23,9 @@ namespace VoiceChatSharp.Core
         OpusEncoder opusEncoder;
         Denoiser denoiser = new();
 
-        float[] floatSample;
-        byte[] encodedOutput;
-
-        public ConcurrentQueue<byte[]> encodedSampleQueue = new();
+        public ConcurrentQueue<byte[]> encodedSamplesQueue = new();
+        
+        byte[] encodedSamples;
 
         bool useNoiseSuppression;
 
@@ -35,7 +34,7 @@ namespace VoiceChatSharp.Core
         /// </summary>
         /// <param name="recorderInterface">The recorder interface to use</param>
         /// <param name="useNoiseSuppression">whenever using noise suppression or not it uses RNNoise library</param>
-        public VoiceChatRecorder(VoiceChatRecorderInterface recorderInterface, bool useNoiseSuppression = true) : base(recorderInterface.SampleRate, recorderInterface.Channels)
+        public VoiceChatRecorder(VoiceChatRecorderInterface recorderInterface, bool useNoiseSuppression = true) : base(recorderInterface.SampleRate, recorderInterface.Channels, recorderInterface.BytesPerSample)
         {
             this.recorderInterface = recorderInterface;
             recorderInterface.OnSampleRead += OnSampleRead;
@@ -44,8 +43,7 @@ namespace VoiceChatSharp.Core
 
             this.useNoiseSuppression = useNoiseSuppression;
 
-            floatSample = new float[VoiceUtils.GetSampleSize(SampleRate, Global.FrameSizeMs, Channels) / sizeof(float)];
-            encodedOutput = new byte[1000];
+            encodedSamples = new byte[1000];
         }
 
         /// <summary>
@@ -84,24 +82,24 @@ namespace VoiceChatSharp.Core
         }
 
         /// <summary>
-        /// Get the first encoded sample recorded from the mic.
+        /// Get the first encoded samples recorded from the mic.
         /// </summary>
-        /// <returns>The encoded sample.</returns>
+        /// <returns>The encoded samples.</returns>
         public byte[]? GetTheFirstEncodedSample()
         {
-            if (encodedSampleQueue.Count is 0)
+            if (encodedSamplesQueue.Count is 0)
             {
                 //Logger.LogError("Encoded queue is empty");
                 return null;
             }
 
-            if (!encodedSampleQueue.TryDequeue(out byte[]? result))
+            if (!encodedSamplesQueue.TryDequeue(out byte[]? samples))
             {
-                //Logger.LogError("Cannot get the first encoded sample");
+                //Logger.LogError("Cannot get the first encoded samples");
                 return null;
             }
 
-            return result;
+            return samples;
         }
 
         /// <summary>
@@ -121,32 +119,23 @@ namespace VoiceChatSharp.Core
         }
 
         /// <summary>
-        /// This method get called internally for each sample that is coming from the mic.
+        /// This method get called internally for each samples that is coming from the mic.
         /// </summary>
-        /// <param name="sample">The sample span.</param>
-        void OnSampleRead(Span<byte> sample)
+        /// <param name="samples">The samples span.</param>
+        void OnSampleRead(Span<float> samples)
         {
-            Span<float> floatSampleSpan = new Span<float>(floatSample);
-
-            VoiceUtils.Convert16BitToFloat(sample, floatSampleSpan);
-
             if (useNoiseSuppression)
             {
-                denoiser.Denoise(floatSampleSpan);
+                denoiser.Denoise(samples);
             }
 
-            VoiceUtils.ConvertFloatTo16Bit(floatSampleSpan, sample);
+            Span<byte> encodedOutputSpan = new Span<byte>(encodedSamples);
 
-            Span<byte> encodedOutputSpan = new Span<byte>(encodedOutput);
-
-            int encodedOutputLength;
-
-            encodedOutputLength = opusEncoder.Encode(sample, sample.Length, encodedOutputSpan, encodedOutputSpan.Length);
+            int encodedOutputLength = opusEncoder.Encode(samples, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float) / Channels, encodedSamples, encodedSamples.Length);
 
             Span<byte> encodedSlice = encodedOutputSpan.Slice(0, encodedOutputLength);
 
-            encodedSampleQueue.Enqueue(encodedSlice.ToArray());
-
+            encodedSamplesQueue.Enqueue(encodedSlice.ToArray());
         }
 
         /// <summary>

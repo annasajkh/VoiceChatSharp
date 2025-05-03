@@ -1,13 +1,12 @@
 ﻿using LiteNetLib.Utils;
 using LiteNetLib;
 using VoiceChatSharp.Utils;
-using VoiceChatSharp.NetworkCommunicationData.Client;
 using VoiceChatSharp.NetworkPacket.ServerToClient;
-using VoiceChatSharp.Core;
 using Timer = System.Timers.Timer;
 using System.Timers;
-using VoiceChatSharp.NetworkCommunicationPacket.ClientToServer;
 using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.NetworkPacket.ClientToServer;
+using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.Networking
 {
@@ -16,8 +15,8 @@ namespace VoiceChatSharp.Networking
         public NetDataWriter NetDataWriter { get; private set; } = new();
         public bool IsInServer { get; private set; }
 
-        VoiceChatRecorder voiceChatRecorder;
-        VoiceChatPlayer voiceChatPlayer;
+        public VoiceChatRecorder VoiceChatRecorder { get; private set; }
+        public VoiceChatPlayer VoiceChatPlayer { get; private set; }
 
         NetPeer? serverPeer;
 
@@ -37,8 +36,8 @@ namespace VoiceChatSharp.Networking
             Deafened = deafened;
             Volume = volume;
 
-            this.voiceChatRecorder = voiceChatRecorder;
-            this.voiceChatPlayer = voiceChatPlayer;
+            this.VoiceChatRecorder = voiceChatRecorder;
+            this.VoiceChatPlayer = voiceChatPlayer;
 
             joiningAttemptTimer = new Timer(100);
 
@@ -130,18 +129,18 @@ namespace VoiceChatSharp.Networking
             //Joining Flow 3
             networkLogger.LogInfo($"Successfully joined the server");
 
-            voiceChatRecorder.StartRecording();
-            voiceChatPlayer.Play();
+            VoiceChatRecorder.StartRecording();
+            VoiceChatPlayer.Play();
             IsInServer = true;
             joiningAttemptTimer.Stop();
         }
 
         public void OnServerToClientAClientLeftPacket(ServerToClientAClientLeftPacket serverToClientAClientLeavedPacket)
         {
-            if (voiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID))
+            if (VoiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID))
             {
                 networkLogger.LogInfo($"Client with id {serverToClientAClientLeavedPacket.ID} left");
-                voiceChatPlayer.RemoveVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID);
+                VoiceChatPlayer.RemoveVoiceChatAudioSource(serverToClientAClientLeavedPacket.ID);
             }
             else
             {
@@ -151,14 +150,14 @@ namespace VoiceChatSharp.Networking
 
         public void OnServerToClientEncodedAudioPacket(ServerToClientEncodedAudioPacket serverToClientEncodedAudioPacket)
         {
-            if (voiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
+            if (VoiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
             {
-                voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+                VoiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
             }
             else
             {
-                voiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
-                voiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+                VoiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
+                VoiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
             }
         }
 
@@ -179,7 +178,7 @@ namespace VoiceChatSharp.Networking
         {
             if (IsInServer && serverPeer != null)
             {
-                byte[]? encodedSampleResult = voiceChatRecorder.GetTheFirstEncodedSample();
+                byte[]? encodedSampleResult = VoiceChatRecorder.GetTheFirstEncodedSample();
 
                 if (encodedSampleResult is null)
                 {
@@ -200,8 +199,8 @@ namespace VoiceChatSharp.Networking
 
         public void Dispose()
         {
-            voiceChatRecorder.Dispose();
-            voiceChatPlayer.Dispose();
+            VoiceChatRecorder.Dispose();
+            VoiceChatPlayer.Dispose();
         }
     }
 

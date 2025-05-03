@@ -1,6 +1,6 @@
-﻿using VoiceChatSharp.Core;
-using VoiceChatSharp.DefaultImplementation;
+﻿using VoiceChatSharp.DefaultImplementation;
 using VoiceChatSharp.Networking;
+using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.TestingClient;
 
@@ -39,6 +39,8 @@ internal class Program
         using var voiceChatClient = new VoiceChatClient<DefaultVoiceChatAudioSource>(new VoiceChatRecorder(new DefaultVoiceChatRecorder()), new VoiceChatPlayer(new DefaultVoiceChatPlayer()), name);
 
         voiceChatClient.Join(addressArr[0], int.Parse(addressArr[1]), "cat");
+
+        voiceChatClient.VoiceChatPlayer.SetVolume(2);
 
         Console.WriteLine("Press any key to leave...");
         while (!Console.KeyAvailable)

@@ -1,5 +1,5 @@
-﻿using VoiceChatSharp.Core;
-using VoiceChatSharp.DefaultImplementation;
+﻿using VoiceChatSharp.DefaultImplementation;
+using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.TestingVoiceChat;
 
@@ -17,18 +17,6 @@ internal class Program
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
         voiceChatPlayer.Play();
 
-        List<string> audioDeviceNames = voiceChatRecorder.GetRecordingDeviceNames();
-
-        Task.Factory.StartNew(() =>
-        {
-            while (true)
-            {
-                Thread.Sleep(random.Next() % 100);
-                voiceChatRecorder.SetCurrentRecordingDevice(audioDeviceNames[random.Next() % audioDeviceNames.Count]);
-                Console.WriteLine($"Current recording device is {voiceChatRecorder.GetCurrentRecordingDeviceName()}");
-            }
-        });
-
         while (true)
         {
             byte[]? encodedSample = voiceChatRecorder.GetTheFirstEncodedSample();
@@ -38,9 +26,7 @@ internal class Program
                 continue;
             }
 
-            Console.WriteLine(encodedSample.Length);
-
-            //voiceChatPlayer.QueueEncodedSample(0, encodedSample);
+            voiceChatPlayer.QueueEncodedSample(0, encodedSample);
         }
     }
 }

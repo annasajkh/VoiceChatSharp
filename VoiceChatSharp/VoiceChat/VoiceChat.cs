@@ -1,4 +1,4 @@
-﻿namespace VoiceChatSharp.Core
+﻿namespace VoiceChatSharp.VoiceChat
 {
     public abstract class VoiceChat : IDisposable
     {
@@ -12,7 +12,12 @@
         /// </summary>
         public int Channels { get; protected set; }
 
-        public VoiceChat(int sampleRate, int channels)
+        /// <summary>
+        /// how many bytes per sample depending on the encoding format
+        /// </summary>
+        public int BytesPerSample { get; protected set; }
+
+        public VoiceChat(int sampleRate, int channels, int bytesPerSample)
         {
             if (!IsValidOpusSampleRate(sampleRate))
             {
@@ -26,6 +31,7 @@
 
             SampleRate = sampleRate;
             Channels = channels;
+            BytesPerSample = bytesPerSample;
         }
 
 

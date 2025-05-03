@@ -1,91 +1,56 @@
-﻿using OpusSharp.Core;
+﻿using Miniaudio;
+using OpusSharp.Core;
+using System;
 using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation
 {
     public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
     {
-        //public unsafe SDL_AudioStream* AudioStream { get; private set; }
 
-        //unsafe nint decodedSamplePtr;
-
-        public override void Init(int sampleRate, int channels, OpusDecoder opusDecoder)
+        public override void Init(int sampleRate, int channels, int bytesPerSample, OpusDecoder opusDecoder)
         {
-            base.Init(sampleRate, channels, opusDecoder);
-
-            //unsafe
-            //{
-            //    decodedSamplePtr = (nint)NativeMemory.Alloc((nuint)VoiceUtils.GetSampleSize(SampleRate, Global.FrameSizeMs, Channels));
-            //}
-
-            //SDL_AudioSpec audioSpec = new();
-            //audioSpec.format = SDL3.SDL_AUDIO_S16;
-            //audioSpec.freq = SampleRate;
-            //audioSpec.channels = Channels;
-
-            //unsafe
-            //{
-            //    AudioStream = SDL3.SDL_CreateAudioStream(&audioSpec, &audioSpec);
-            //}
+            base.Init(sampleRate, channels, bytesPerSample, opusDecoder);
         }
 
         public override void Update()
         {
-            //unsafe
-            //{
-            //    int sampleSize = VoiceUtils.GetSampleSize(SampleRate, Global.FrameSizeMs, Channels);
+            lock (DecodedSamplesPtrLock)
+            {
+                if (DecodedSamplesPtr == IntPtr.Zero)
+                {
+                    return;
+                }
+            }
 
-            //    if (SDL3.SDL_GetAudioStreamQueued(AudioStream) > sampleSize)
-            //    {
-            //        return;
-            //    }
+            Span<float> decodedSamples;
 
-            //    if (!EncodedSampleQueue.TryDequeue(out byte[]? sample))
-            //    {
-            //        return;
-            //    }
+            unsafe
+            {
+                lock (DecodedSamplesPtrLock)
+                {
+                    decodedSamples = new Span<float>((void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float));
+                }
+            }
 
-            //    Span<byte> decodedSample = new Span<byte>((void*)decodedSamplePtr, VoiceUtils.GetSampleSize(SampleRate, Global.FrameSizeMs, Channels));
+            unsafe
+            {
+                lock (DecodedSamplesPtrLock)
+                {
+                    ma.apply_volume_factor_pcm_frames_f32((float*)DecodedSamplesPtr, (ulong)(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float)), (uint)Channels, Volume);
+                }
+            }
 
-            //    OpusDecoder.Decode(sample, sample.Length, decodedSample, decodedSample.Length, false);
-
-            //    SDL3.SDL_PutAudioStreamData(AudioStream, decodedSamplePtr, VoiceUtils.GetSampleSize(SampleRate, Global.FrameSizeMs, Channels));
-            //}
-        }
-
-
-        public override void Play()
-        {
-            //unsafe
-            //{
-            //    SDL3.SDL_ResumeAudioStreamDevice(AudioStream);
-            //}
-        }
-
-        public override void SetVolume(float volume)
-        {
-
-        }
-
-        public override void Pause()
-        {
-            //unsafe
-            //{
-            //    SDL3.SDL_PauseAudioStreamDevice(AudioStream);
-            //}
+            if (Playing)
+            {
+                DecodedSamplesQueue.Enqueue(decodedSamples.ToArray());
+            }
         }
 
         public override void Dispose()
         {
-            //unsafe
-            //{
-            //    NativeMemory.Free((void*)decodedSamplePtr);
-            //}
 
-            //unsafe
-            //{
-            //    SDL3.SDL_DestroyAudioStream(AudioStream);
-            //}
         }
     }
 }
