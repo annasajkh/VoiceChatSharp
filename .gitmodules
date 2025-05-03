@@ -1,0 +1,3 @@
+[submodule "Miniaudio-CS"]
+	path = Miniaudio-CS
+	url = https://github.com/annasajkh/Miniaudio-CS
