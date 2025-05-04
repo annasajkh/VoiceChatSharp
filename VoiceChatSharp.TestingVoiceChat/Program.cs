@@ -7,8 +7,6 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        Random random = new();
-
         using VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultVoiceChatRecorder());
         using VoiceChatPlayer voiceChatPlayer = new VoiceChatPlayer(new DefaultVoiceChatPlayer());
 
