@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
+    <PublishAot>True</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
