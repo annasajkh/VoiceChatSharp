@@ -23,7 +23,7 @@ namespace VoiceChatSharp.Interfaces
         public ConcurrentQueue<byte[]> EncodedSamplesQueue { get; private set; } = new();
         public ConcurrentQueue<float[]> DecodedSamplesQueue { get; private set; } = new();
 
-        public object DecodedSamplesPtrLock { get; private set; } = new object();
+        bool isDisposed;
 
         /// <summary>
         /// Initialize the audio source.
@@ -36,10 +36,7 @@ namespace VoiceChatSharp.Interfaces
             Volume = 1;
             BytesPerSample = bytesPerSample;
 
-            lock (DecodedSamplesPtrLock)
-            {
-                DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
-            }
+            DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
         }
 
         public virtual void Play()
@@ -65,7 +62,18 @@ namespace VoiceChatSharp.Interfaces
         /// </summary>
         public virtual void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
 
+            isDisposed = true;
+
+            if (DecodedSamplesPtr != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(DecodedSamplesPtr);
+                DecodedSamplesPtr = IntPtr.Zero;
+            }
         }
     }
 }

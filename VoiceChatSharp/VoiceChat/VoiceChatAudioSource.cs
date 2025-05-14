@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using VoiceChatSharp.Interfaces;
+﻿using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.VoiceChat
@@ -49,10 +48,7 @@ namespace VoiceChatSharp.VoiceChat
 
             unsafe
             {
-                lock (VoiceChatAudioSourceInterface.DecodedSamplesPtrLock)
-                {
-                    decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
-                }
+                decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
             }
 
             VoiceChatAudioSourceInterface.OpusDecoder.Decode(samples, samples.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
@@ -72,12 +68,6 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Dispose()
         {
-
-            lock (VoiceChatAudioSourceInterface.DecodedSamplesPtrLock)
-            {
-                Marshal.FreeHGlobal(VoiceChatAudioSourceInterface.DecodedSamplesPtr);
-            }
-
             VoiceChatAudioSourceInterface.Dispose();
         }
     }

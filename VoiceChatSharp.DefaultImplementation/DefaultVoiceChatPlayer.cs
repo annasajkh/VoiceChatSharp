@@ -16,6 +16,7 @@ namespace VoiceChatSharp.DefaultImplementation
 
         bool alreadyInitialized;
         bool isPlaying;
+        bool isDisposed;
 
         WriteSampleCallback writeSampleCallbackDelegate;
 
@@ -48,14 +49,14 @@ namespace VoiceChatSharp.DefaultImplementation
                     ma.device_uninit(device);
                     ma.context_uninit(context);
 
-                    Marshal.FreeHGlobal((IntPtr)context);
-                    Marshal.FreeHGlobal((IntPtr)device);
+                    ma.free(context, (ma_allocation_callbacks*)IntPtr.Zero);
+                    ma.free(device, (ma_allocation_callbacks*)IntPtr.Zero);
                 }
             }
 
             unsafe
             {
-                context = (ma_context*)Marshal.AllocHGlobal(sizeof(ma_context));
+                context = (ma_context*)ma.malloc(new UIntPtr((uint)sizeof(ma_context)), (ma_allocation_callbacks*)IntPtr.Zero);
 
                 ma_result contextInitResult = ma.context_init((ma_backend*)IntPtr.Zero, 0, (ma_context_config*)IntPtr.Zero, context);
 
@@ -87,7 +88,7 @@ namespace VoiceChatSharp.DefaultImplementation
                 deviceConfig.dataCallback = Marshal.GetFunctionPointerForDelegate(writeSampleCallbackDelegate);
                 deviceConfig.pUserData = (void*)IntPtr.Zero;
 
-                device = (ma_device*)Marshal.AllocHGlobal(sizeof(ma_device));
+                device = (ma_device*)ma.malloc(new UIntPtr((uint)sizeof(ma_device)), (ma_allocation_callbacks*)IntPtr.Zero);
 
                 ma_result deviceInitResult = ma.device_init(context, &deviceConfig, device);
 
@@ -256,13 +257,20 @@ namespace VoiceChatSharp.DefaultImplementation
         /// </summary>
         public override void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            isDisposed = true;
+
             unsafe
             {
                 ma.context_uninit(context);
                 ma.device_uninit(device);
 
-                Marshal.FreeHGlobal((IntPtr)context);
-                Marshal.FreeHGlobal((IntPtr)device);
+                ma.free(context, (ma_allocation_callbacks*)IntPtr.Zero);
+                ma.free(device, (ma_allocation_callbacks*)IntPtr.Zero);
             }
         }
     }
