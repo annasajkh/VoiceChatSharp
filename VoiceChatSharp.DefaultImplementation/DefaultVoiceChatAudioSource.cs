@@ -31,7 +31,7 @@ namespace VoiceChatSharp.DefaultImplementation
 
             unsafe
             {
-                if (SDL.GetAudioStreamQueued(AudioStream) > sampleSize)
+                if (SDL.GetAudioStreamQueued(AudioStream) >= sampleSize)
                 {
                     return;
                 }
