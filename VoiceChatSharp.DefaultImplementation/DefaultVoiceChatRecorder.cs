@@ -244,6 +244,8 @@ namespace VoiceChatSharp.DefaultImplementation
 
             isDisposed = true;
 
+            readSampleThread.Abort();
+
             unsafe
             {
                 SDL.DestroyAudioStream(audioStream);

@@ -168,6 +168,7 @@ namespace VoiceChatSharp.VoiceChat
                 voiceChatAudioSource.Dispose();
             }
 
+            updateThread.Abort();
             voiceChatPlayerInterface.VoiceChatAudioSources.Clear();
 
             voiceChatPlayerInterface.Dispose();
