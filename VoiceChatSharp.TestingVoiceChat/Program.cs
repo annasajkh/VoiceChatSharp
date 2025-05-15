@@ -49,10 +49,6 @@ internal class Program
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
         voiceChatPlayer.PlayAudioSource(0);
 
-
-        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(1);
-        voiceChatPlayer.PlayAudioSource(1);
-
         voiceChatPlayer.Play();
 
         while (true)
@@ -65,8 +61,6 @@ internal class Program
             }
 
             voiceChatPlayer.QueueEncodedSample(0, encodedSample);
-
-            voiceChatPlayer.QueueEncodedSample(1, encodedSample);
         }
     }
 }
