@@ -25,7 +25,7 @@ namespace VoiceChatSharp.DefaultImplementation
         bool isRecording;
         bool isDisposed;
 
-        public DefaultVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
+        public DefaultVoiceChatRecorder(int sampleRate = 16000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
             readBufferPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
 
