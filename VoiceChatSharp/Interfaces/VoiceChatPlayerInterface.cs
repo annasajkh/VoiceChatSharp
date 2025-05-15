@@ -7,8 +7,8 @@ namespace VoiceChatSharp.Interfaces
         public int SampleRate { get; private set; }
         public int Channels { get; private set; }
         public int BytesPerSample { get; private set; }
-
-        public float Volume { get; set; }
+        public float Volume { get; protected set; }
+        public bool Playing { get; protected set; }
 
         public Dictionary<int, VoiceChatAudioSource> VoiceChatAudioSources { get; private set; } = new();
 
@@ -18,6 +18,17 @@ namespace VoiceChatSharp.Interfaces
             Channels = channels;
             BytesPerSample = bytesPerSample;
             Volume = 1;
+        }
+
+
+        public virtual void AddVoiceChatAudioSourceCallback<T>(int id) where T : VoiceChatAudioSourceInterface, new()
+        {
+
+        }
+
+        public virtual void RemoveVoiceChatAudioSourceCallback(int id)
+        {
+
         }
 
         /// <summary>
@@ -47,6 +58,11 @@ namespace VoiceChatSharp.Interfaces
         /// Pause the player.
         /// </summary>
         public abstract void Pause();
+
+        /// <summary>
+        /// Set volume for voice chat player.
+        /// </summary>
+        public abstract void SetVolume(float volume);
 
         /// <summary>
         /// Dispose internal resources.

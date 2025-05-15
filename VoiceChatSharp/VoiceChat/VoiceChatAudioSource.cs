@@ -24,7 +24,7 @@ namespace VoiceChatSharp.VoiceChat
         /// <param name="volume">The volume</param>
         public void SetVolume(float volume)
         {
-            VoiceChatAudioSourceInterface.Volume = volume;
+            VoiceChatAudioSourceInterface.SetVolume(volume);
         }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Play()
         {
-            VoiceChatAudioSourceInterface.Playing = true;
+            VoiceChatAudioSourceInterface.Play();
         }
 
         public void Update()
@@ -60,7 +60,7 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Pause()
         {
-            VoiceChatAudioSourceInterface.Playing = false;
+            VoiceChatAudioSourceInterface.Pause();
         }
 
         /// <summary>

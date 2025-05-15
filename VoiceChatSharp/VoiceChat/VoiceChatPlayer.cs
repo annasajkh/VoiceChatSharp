@@ -9,8 +9,6 @@ namespace VoiceChatSharp.VoiceChat
 
         VoiceChatPlayerInterface voiceChatPlayerInterface;
 
-        CancellationTokenSource cancellationTokenSource = new();
-
         Thread updateThread;
 
         public VoiceChatPlayer(VoiceChatPlayerInterface voiceChatPlayerInterface) : base(voiceChatPlayerInterface.SampleRate, voiceChatPlayerInterface.Channels, voiceChatPlayerInterface.BytesPerSample)
@@ -18,7 +16,9 @@ namespace VoiceChatSharp.VoiceChat
             OpusDecoder = new OpusDecoder(sample_rate: voiceChatPlayerInterface.SampleRate, channels: voiceChatPlayerInterface.Channels);
 
             this.voiceChatPlayerInterface = voiceChatPlayerInterface;
+
             updateThread = new Thread(UpdateThread);
+            updateThread.Start();
         }
 
         public void QueueEncodedSample(int id, byte[] encodedSample)
@@ -29,9 +29,29 @@ namespace VoiceChatSharp.VoiceChat
             }
         }
 
-        public void SetVolume(int id, float volume)
+
+        /// <summary>
+        /// Set volume for voice chat player.
+        /// </summary>
+        public void SetVolumeAudioSource(int id, float volume)
         {
             voiceChatPlayerInterface.VoiceChatAudioSources[id].SetVolume(volume);
+        }
+
+        /// <summary>
+        /// Play specific audio source.
+        /// </summary>
+        public void PlayAudioSource(int id)
+        {
+            voiceChatPlayerInterface.VoiceChatAudioSources[id].Play();
+        }
+
+        /// <summary>
+        /// Pause specific audio source.
+        /// </summary>
+        public void PauseAudioSource(int id)
+        {
+            voiceChatPlayerInterface.VoiceChatAudioSources[id].Pause();
         }
 
         public bool ContainsVoiceChatAudioSource(int id)
@@ -53,14 +73,16 @@ namespace VoiceChatSharp.VoiceChat
         {
             voiceChatPlayerInterface.VoiceChatAudioSources[id] = new VoiceChatAudioSource(new T());
             voiceChatPlayerInterface.VoiceChatAudioSources[id].VoiceChatAudioSourceInterface.Init(SampleRate, Channels, BytesPerSample, OpusDecoder);
-            voiceChatPlayerInterface.VoiceChatAudioSources[id].Play();
+
+            voiceChatPlayerInterface.AddVoiceChatAudioSourceCallback<T>(id);
         }
 
         public void RemoveVoiceChatAudioSource(int id)
         {
             if (voiceChatPlayerInterface.VoiceChatAudioSources.ContainsKey(id))
             {
-                voiceChatPlayerInterface.VoiceChatAudioSources[id].Pause();
+                voiceChatPlayerInterface.RemoveVoiceChatAudioSourceCallback(id);
+
                 voiceChatPlayerInterface.VoiceChatAudioSources[id].Dispose();
                 voiceChatPlayerInterface.VoiceChatAudioSources.Remove(id);
             }
@@ -99,18 +121,21 @@ namespace VoiceChatSharp.VoiceChat
         /// <param name="volume">The volume</param>
         public void SetVolume(float volume)
         {
-            voiceChatPlayerInterface.Volume = volume;
+            voiceChatPlayerInterface.SetVolume(volume);
         }
 
         void UpdateThread()
         {
             SpinWait spinWait = new();
 
-            while (!cancellationTokenSource.Token.IsCancellationRequested)
+            while (true)
             {
-                foreach (var voiceChatAudioSource in voiceChatPlayerInterface.VoiceChatAudioSources.Values)
+                if (voiceChatPlayerInterface.Playing)
                 {
-                    voiceChatAudioSource.Update();
+                    foreach (var voiceChatAudioSource in voiceChatPlayerInterface.VoiceChatAudioSources.Values)
+                    {
+                        voiceChatAudioSource.Update();
+                    }
                 }
 
                 spinWait.SpinOnce();
@@ -122,7 +147,6 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Play()
         {
-            updateThread.Start();
             voiceChatPlayerInterface.Play();
         }
 
@@ -131,7 +155,6 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Pause()
         {
-            cancellationTokenSource.Cancel();
             voiceChatPlayerInterface.Pause();
         }
 
@@ -140,8 +163,6 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public override void Dispose()
         {
-            cancellationTokenSource.Cancel();
-
             foreach (VoiceChatAudioSource voiceChatAudioSource in voiceChatPlayerInterface.VoiceChatAudioSources.Values)
             {
                 voiceChatAudioSource.Dispose();

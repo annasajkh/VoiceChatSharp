@@ -1,105 +1,105 @@
 ﻿using VoiceChatSharp.Interfaces;
-using System.Runtime.InteropServices;
 using System;
-using Miniaudio;
 using System.Collections.Generic;
+using Hexa.NET.SDL3;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation
 {
     public class DefaultVoiceChatRecorder : VoiceChatRecorderInterface
     {
-        unsafe ma_device* device;
-        unsafe ma_context* context;
+        unsafe SDLAudioStream* audioStream;
+        
+        uint logicalDeviceID;
+        uint physicalDeviceID;
+        
+        IntPtr readBufferPtr;
+        Thread readSampleThread;
+
+        Dictionary<string, uint> audioDevicesMapping = new Dictionary<string, uint>();
 
         bool alreadyInitialized;
         bool isRecording;
         bool isDisposed;
 
-        ReadSampleCallback readSampleCallbackDelegate;
-
-        Dictionary<string, ma_device_id> audioDevicesMapping = new Dictionary<string, ma_device_id>();
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        unsafe delegate void ReadSampleCallback(ma_device* pDevice, void* pOutput, void* pInput, uint frameCount);
-
-        public DefaultVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, (int)ma.get_bytes_per_sample(ma_format.ma_format_f32), recodingDevice)
+        public DefaultVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
-            unsafe
-            {
-                readSampleCallbackDelegate = ReadSample;
-            }
+            readBufferPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
 
-            InitDevice(sampleRate, channels, recodingDevice);
-        }
-
-        void InitDevice(int sampleRate, int channels, string? recodingDevice = null)
-        {
-            if (alreadyInitialized)
+            if (!SDL.Init(SDLInitFlags.Audio))
             {
                 unsafe
                 {
-                    ma.device_stop(device);
-                    ma.device_uninit(device);
-                    ma.context_uninit(context);
-
-                    ma.free(context, (ma_allocation_callbacks*)IntPtr.Zero);
-                    ma.free(device, (ma_allocation_callbacks*)IntPtr.Zero);
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    throw new Exception($"Cannot initialize sdl audio SDL_Error: {errorMessage}");
                 }
             }
 
+            SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
+            sdlAudioSpec.Format = SDLAudioFormat.F32;
+            sdlAudioSpec.Freq = SampleRate;
+            sdlAudioSpec.Channels = Channels;
+
             unsafe
             {
-                context = (ma_context*)ma.malloc(new UIntPtr((uint)sizeof(ma_context)), (ma_allocation_callbacks*)IntPtr.Zero);
+                audioStream = SDL.CreateAudioStream((SDLAudioSpec*)IntPtr.Zero, &sdlAudioSpec);
 
-                ma_result contextInitResult = ma.context_init((ma_backend*)IntPtr.Zero, 0, (ma_context_config*)IntPtr.Zero, context);
-
-                if (contextInitResult != ma_result.MA_SUCCESS)
+                if (audioStream == (SDLAudioStream*)IntPtr.Zero)
                 {
-                    throw new Exception($"Failed to initialize context {contextInitResult}");
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    throw new Exception($"Failed to open physical audio device with a stream SDL_Error: {errorMessage}");
+                }
+            }
+
+            InitDevice(sampleRate, channels, recodingDevice);
+
+            readSampleThread = new Thread(ReadSample);
+            readSampleThread.Start();
+        }
+
+        void InitDevice(int sampleRate, int channels, string? recordingDevice = null)
+        {
+            unsafe
+            {
+                if (alreadyInitialized)
+                {
+                    SDL.CloseAudioDevice(logicalDeviceID);
                 }
 
-                ma_device_config deviceConfig = ma.device_config_init(ma_device_type.ma_device_type_capture);
+                SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
+                sdlAudioSpec.Format = SDLAudioFormat.F32;
+                sdlAudioSpec.Freq = SampleRate;
+                sdlAudioSpec.Channels = Channels;
 
-                if (!(recodingDevice is null))
+                if (!(recordingDevice is null))
                 {
                     RefreshAudioDeviceMapping();
 
-                    if (!audioDevicesMapping.ContainsKey(recodingDevice))
+                    if (!audioDevicesMapping.ContainsKey(recordingDevice))
                     {
-                        throw new Exception($"There is no recording device with the name {recodingDevice}");
+                        throw new Exception($"There is no recording device with the name {recordingDevice}");
                     }
 
-                    ma_device_id choosenDeviceID = audioDevicesMapping[recodingDevice];
-
-                    deviceConfig.capture.pDeviceID = &choosenDeviceID;
+                    physicalDeviceID = audioDevicesMapping[recordingDevice];
+                    logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
                 }
-
-                deviceConfig.capture.format = ma_format.ma_format_f32;
-                deviceConfig.capture.channels = (uint)channels;
-                deviceConfig.sampleRate = (uint)sampleRate;
-                deviceConfig.periodSizeInMilliseconds = (uint)Global.FrameSizeMs;
-                deviceConfig.dataCallback = Marshal.GetFunctionPointerForDelegate(readSampleCallbackDelegate);
-                deviceConfig.pUserData = (void*)IntPtr.Zero;
-
-                device = (ma_device*)ma.malloc(new UIntPtr((uint)sizeof(ma_device)), (ma_allocation_callbacks*)IntPtr.Zero);
-
-                ma_result deviceInitResult = ma.device_init(context, &deviceConfig, device);
-
-                if (deviceInitResult != ma_result.MA_SUCCESS)
+                else
                 {
-                    throw new Exception($"Failed to initialize capture device {deviceInitResult}");
+                    physicalDeviceID = 0xFFFFFFFEu;
+                    logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
                 }
+
+                SDL.BindAudioStream(logicalDeviceID, audioStream);
 
                 if (alreadyInitialized && isRecording)
                 {
-                    ma_result deviceStartResult = ma.device_start(device);
-
-                    if (deviceStartResult != ma_result.MA_SUCCESS)
+                    if (!SDL.ResumeAudioDevice(logicalDeviceID))
                     {
-                        ma.device_uninit(device);
-                        throw new Exception($"Failed to start device {deviceStartResult}");
+                        string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                        throw new Exception($"Failed to start logical audio device SDL_Error: {errorMessage}");
                     }
                 }
             }
@@ -113,42 +113,22 @@ namespace VoiceChatSharp.DefaultImplementation
             
             unsafe
             {
-                ma_device_info* captureInfos;
-                uint captureCount;
+                int recordingDeviceCount;
+                uint* rawRecordingDeviceIDs = SDL.GetAudioRecordingDevices(&recordingDeviceCount);
 
-                ma_result contextGetDevicesResult = ma.context_get_devices(context, (ma_device_info**)IntPtr.Zero, (uint*)IntPtr.Zero, &captureInfos, &captureCount);
-
-                Span<ma_device_info> captureCountInfosSpan = new Span<ma_device_info>(captureInfos, (int)captureCount);
-
-                if (contextGetDevicesResult != ma_result.MA_SUCCESS)
+                if (rawRecordingDeviceIDs == (uint*)IntPtr.Zero)
                 {
-                    throw new Exception($"Failed to call ma.context_get_devices() {contextGetDevicesResult}");
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    throw new Exception($"Cannot get audio recording devices SDL_Error: {errorMessage}");
                 }
 
-                for (int i = 0; i < captureCount; i++)
+                Span<uint> recordingDeviceIDs = new Span<uint>(rawRecordingDeviceIDs, recordingDeviceCount);
+
+                for (int i = 0; i < recordingDeviceIDs.Length; i++)
                 {
-                    string? audioDeviceName;
-
-                    fixed (sbyte* namePtr = captureCountInfosSpan[i].name)
-                    {
-                        audioDeviceName = Marshal.PtrToStringAnsi((IntPtr)namePtr);
-                    }
-
-                    if (audioDeviceName is null)
-                    {
-                        throw new Exception("Error when getting audio device name");
-                    }
-
-                    audioDevicesMapping.Add(audioDeviceName, captureCountInfosSpan[i].id);
+                    audioDevicesMapping.Add(SDL.GetAudioDeviceNameS(recordingDeviceIDs[i]), recordingDeviceIDs[i]);
                 }
             }
-        }
-
-        unsafe void ReadSample(ma_device* pDevice, void* pOutput, void* pInput, uint frameCount)
-        {
-            Span<float> outputSpan = new Span<float>(pInput, (int)frameCount * Channels);
-
-            OnSampleReadInternal(outputSpan);
         }
 
         public override List<string> GetRecordingDeviceNames()
@@ -160,47 +140,75 @@ namespace VoiceChatSharp.DefaultImplementation
 
         public override void SetCurrentRecordingDevice(string name)
         {
-            InitDevice(SampleRate, Channels, name);
+            if (name == "System Default")
+            {
+                InitDevice(SampleRate, Channels);
+            }
+            else
+            {
+                InitDevice(SampleRate, Channels, name);
+            }
+
+            Thread.Sleep(100);
         }
 
         public override string GetCurrentRecordingDeviceName()
         {
-            unsafe
+            if (physicalDeviceID == 0xFFFFFFFEu)
             {
-                UIntPtr nameLength = UIntPtr.Zero;
-
-                ma_result deviceGetNameResultFirst = ma.device_get_name(device, ma_device_type.ma_device_type_capture, (sbyte*)IntPtr.Zero, UIntPtr.Zero, &nameLength);
-
-                sbyte* namePtr = stackalloc sbyte[((int)(nameLength + 1))];
-
-                if (deviceGetNameResultFirst != ma_result.MA_SUCCESS)
-                {
-                    throw new Exception($"Cannot get device name {deviceGetNameResultFirst}");
-                }
-
-                ma_result deviceGetNameResultSecond = ma.device_get_name(device, ma_device_type.ma_device_type_capture, namePtr, nameLength + 1, (UIntPtr*)UIntPtr.Zero);
-
-                if (deviceGetNameResultSecond != ma_result.MA_SUCCESS)
-                {
-                    throw new Exception($"Cannot get device name {deviceGetNameResultSecond}");
-                }
-
-                string? nameStr = Marshal.PtrToStringAnsi((IntPtr)namePtr);
-
-                if (nameStr is null)
-                {
-                    throw new Exception("Cannot convert name pointer to string");
-                }
-
-                return nameStr;
+                return "System Default";
             }
+
+            string currentRecordingAudioDeviceName = SDL.GetAudioDeviceNameS(physicalDeviceID);
+
+            if (currentRecordingAudioDeviceName is null)
+            {
+                unsafe
+                {
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    throw new Exception($"Cannot get current recording audio device name SDL_Error: {errorMessage}");
+                }
+            }
+
+            return currentRecordingAudioDeviceName;
+
         }
 
         public override void SetVolume(float volume)
         {
+            Volume = volume;
+
             unsafe
             {
-                ma.device_set_master_volume(device, volume);
+                SDL.SetAudioDeviceGain(logicalDeviceID, volume);
+            }
+        }
+
+        public void ReadSample()
+        {
+            SpinWait spinWait = new SpinWait();
+
+            while (true)
+            {
+                if (isRecording)
+                {
+                    unsafe
+                    {
+                        if (SDL.GetAudioStreamAvailable(audioStream) >= Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample))
+                        {
+                            int bytesRead = SDL.GetAudioStreamData(audioStream, (void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
+
+                            if (bytesRead > 0)
+                            {
+                                Span<float> rawAudioData = new Span<float>((void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float));
+
+                                OnSampleReadInternal(rawAudioData);
+                            }
+                        }
+                    }
+                }
+
+                spinWait.SpinOnce();
             }
         }
 
@@ -210,22 +218,20 @@ namespace VoiceChatSharp.DefaultImplementation
 
             unsafe
             {
-                ma_result deviceStartResult = ma.device_start(device);
-
-                if (deviceStartResult != ma_result.MA_SUCCESS)
-                {
-                    throw new Exception($"Failed to start device {deviceStartResult}");
-                }
+                SDL.ResumeAudioDevice(logicalDeviceID);
+                SDL.ResumeAudioStreamDevice(audioStream);
             }
         }
 
         public override void StopRecording()
         {
+
             isRecording = false;
 
             unsafe
             {
-                ma.device_stop(device);
+                SDL.PauseAudioDevice(logicalDeviceID);
+                SDL.PauseAudioStreamDevice(audioStream);
             }
         }
 
@@ -240,12 +246,11 @@ namespace VoiceChatSharp.DefaultImplementation
 
             unsafe
             {
-                ma.context_uninit(context);
-                ma.device_uninit(device);
-
-                ma.free(context, (ma_allocation_callbacks*)IntPtr.Zero);
-                ma.free(device, (ma_allocation_callbacks*)IntPtr.Zero);
+                SDL.DestroyAudioStream(audioStream);
+                SDL.CloseAudioDevice(logicalDeviceID);
             }
+
+            Marshal.FreeHGlobal(readBufferPtr);
         }
     }
 }

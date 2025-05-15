@@ -5,11 +5,15 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
+    <LangVersion>10.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Miniaudio-CS\Miniaudio-CS\Miniaudio-CS.csproj" />
     <ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hexa.NET.SDL3" Version="1.2.16" />
   </ItemGroup>
 
 </Project>

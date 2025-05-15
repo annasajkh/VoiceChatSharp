@@ -7,11 +7,11 @@ namespace VoiceChatSharp.Interfaces
 {
     public class VoiceChatAudioSourceInterface
     {
-        public int SampleRate { get; set; }
-        public int Channels { get; set; }
-        public int BytesPerSample { get; set; }
-        public float Volume { get; set; }
-        public bool Playing { get; set; }
+        public int SampleRate { get; protected set; }
+        public int Channels { get; protected set; }
+        public int BytesPerSample { get; protected set; }
+        public bool Playing { get; protected set; }
+        public float Volume { get; protected set; }
 
         public unsafe IntPtr DecodedSamplesPtr { get; private set; }
 
@@ -33,10 +33,19 @@ namespace VoiceChatSharp.Interfaces
             SampleRate = sampleRate;
             Channels = channels;
             OpusDecoder = opusDecoder;
-            Volume = 1;
             BytesPerSample = bytesPerSample;
+            Volume = 1;
 
             DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
+        }
+
+
+        /// <summary>
+        /// Set volume for voice chat audio source.
+        /// </summary>
+        public virtual void SetVolume(float volume)
+        {
+
         }
 
         public virtual void Play()
@@ -44,7 +53,7 @@ namespace VoiceChatSharp.Interfaces
 
         }
 
-        public virtual void Stop()
+        public virtual void Pause()
         {
 
         }

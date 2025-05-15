@@ -1,4 +1,4 @@
-﻿using Miniaudio;
+﻿using Hexa.NET.SDL3;
 using OpusSharp.Core;
 using System;
 using VoiceChatSharp.Interfaces;
@@ -8,35 +8,77 @@ namespace VoiceChatSharp.DefaultImplementation
 {
     public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
     {
+        public unsafe SDLAudioStream* AudioStream { get; private set; }
+
         public override void Init(int sampleRate, int channels, int bytesPerSample, OpusDecoder opusDecoder)
         {
             base.Init(sampleRate, channels, bytesPerSample, opusDecoder);
+
+            SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
+            sdlAudioSpec.Format = SDLAudioFormat.F32;
+            sdlAudioSpec.Freq = SampleRate;
+            sdlAudioSpec.Channels = Channels;
+
+            unsafe
+            {
+                AudioStream = SDL.CreateAudioStream(&sdlAudioSpec, (SDLAudioSpec*)IntPtr.Zero);
+            }
         }
 
         public override void Update()
         {
+            int sampleSize = Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample);
+
+            unsafe
+            {
+                if (SDL.GetAudioStreamQueued(AudioStream) > sampleSize)
+                {
+                    return;
+                }
+            }
+
             if (DecodedSamplesPtr == IntPtr.Zero)
             {
                 return;
             }
 
-            Span<float> decodedSamples;
+            unsafe
+            {
+                if (!SDL.PutAudioStreamData(AudioStream, (void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample)))
+                {
+                    string errorMessage = System.Runtime.InteropServices.Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    Logger.LogWarning($"Cannot put audio stream data SDL_Error: {errorMessage}");
+                }
+            }
+        }
 
-            int totalSamplesBytes = Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample);
+        public override void Play()
+        {
+            Playing = true;
 
             unsafe
             {
-                decodedSamples = new Span<float>((void*)DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
+                SDL.ResumeAudioStreamDevice(AudioStream);
             }
+        }
+
+        public override void Pause()
+        {
+            Playing = false;
 
             unsafe
             {
-                ma.apply_volume_factor_pcm_frames_f32((float*)DecodedSamplesPtr, (ulong)(totalSamplesBytes / sizeof(float) / Channels), (uint)Channels, Volume);
+                SDL.PauseAudioStreamDevice(AudioStream);
             }
+        }
 
-            if (Playing)
+        public override void SetVolume(float volume)
+        {
+            Volume = volume;
+
+            unsafe
             {
-                DecodedSamplesQueue.Enqueue(decodedSamples.ToArray());
+                SDL.SetAudioStreamGain(AudioStream, Volume);
             }
         }
 

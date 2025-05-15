@@ -5,8 +5,9 @@
         public int SampleRate { get; protected set; }
         public int Channels { get; protected set; }
         public int BytesPerSample { get; protected set; }
-        
         public string? RecodingDevice { get; private set; }
+        public float Volume { get; protected set; }
+
 
         public delegate void SampleFlow(Span<float> samples);
 
@@ -18,6 +19,7 @@
             Channels = channels;
             BytesPerSample = bytesPerSample;
             RecodingDevice = recodingDevice;
+            Volume = 1;
         }
 
         /// <summary>
