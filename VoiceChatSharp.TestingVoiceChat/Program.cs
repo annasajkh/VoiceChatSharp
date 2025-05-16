@@ -60,6 +60,10 @@ internal class Program
             {
                 voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
             }
+
+            voiceChatPlayer.QueueEncodedSample(1, encodedSample);
+
+            voiceChatPlayer.QueueEncodedSample(1, encodedSample);
         }
     }
 }
