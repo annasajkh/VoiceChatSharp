@@ -1,6 +1,7 @@
 ﻿using Hexa.NET.SDL3;
 using OpusSharp.Core;
 using System;
+using System.Runtime.InteropServices;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
@@ -10,9 +11,9 @@ namespace VoiceChatSharp.DefaultImplementation
     {
         public unsafe SDLAudioStream* AudioStream { get; private set; }
 
-        public override void Init(int sampleRate, int channels, int bytesPerSample, OpusDecoder opusDecoder)
+        public override void Init(int sampleRate, int channels, int bytesPerSample, int frameSizeMS, OpusDecoder opusDecoder)
         {
-            base.Init(sampleRate, channels, bytesPerSample, opusDecoder);
+            base.Init(sampleRate, channels, bytesPerSample, frameSizeMS, opusDecoder);
 
             SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
             sdlAudioSpec.Format = SDLAudioFormat.F32;
@@ -25,28 +26,26 @@ namespace VoiceChatSharp.DefaultImplementation
             }
         }
 
-        public override void Update()
+        public override bool IsAudioDeviceWantSamples()
         {
-            int sampleSize = Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample);
-
             unsafe
             {
-                if (SDL.GetAudioStreamQueued(AudioStream) >= sampleSize)
+                if (SDL.GetAudioStreamQueued(AudioStream) >= Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample))
                 {
-                    return;
+                    return false;
                 }
             }
 
-            if (DecodedSamplesPtr == IntPtr.Zero)
-            {
-                return;
-            }
+            return true;
+        }
 
+        public override void Update()
+        {
             unsafe
             {
-                if (!SDL.PutAudioStreamData(AudioStream, (void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample)))
+                if (!SDL.PutAudioStreamData(AudioStream, (void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample)))
                 {
-                    string errorMessage = System.Runtime.InteropServices.Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
                     Logger.LogWarning($"Cannot put audio stream data SDL_Error: {errorMessage}");
                 }
             }
@@ -80,11 +79,6 @@ namespace VoiceChatSharp.DefaultImplementation
             {
                 SDL.SetAudioStreamGain(AudioStream, Volume);
             }
-        }
-
-        public override void Dispose()
-        {
-            base.Dispose();
         }
     }
 }

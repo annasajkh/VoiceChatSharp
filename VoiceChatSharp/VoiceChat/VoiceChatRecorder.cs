@@ -1,6 +1,7 @@
 ﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
 using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 
@@ -10,7 +11,7 @@ namespace VoiceChatSharp.VoiceChat
     {
         Success = 0,
         EncodedQueueIsEmpty,
-        CannotGetTheFirstEncodedSample,
+        CannotGetTheFirstEncodedAudioPacket,
     }
 
     /// <summary>
@@ -21,7 +22,7 @@ namespace VoiceChatSharp.VoiceChat
         VoiceChatRecorderInterface recorderInterface;
         OpusEncoder opusEncoder;
 
-        public ConcurrentQueue<byte[]> encodedSamplesQueue = new();
+        public ConcurrentQueue<EncodedAudioPacket> encodedAudioPacketsQueue = new();
         
         byte[] encodedSamples;
 
@@ -82,21 +83,21 @@ namespace VoiceChatSharp.VoiceChat
         /// Get the first encoded samples recorded from the mic.
         /// </summary>
         /// <returns>The encoded samples.</returns>
-        public byte[]? GetTheFirstEncodedSample()
+        public EncodedAudioPacket? GetTheFirstEncodedAudioPacket()
         {
-            if (encodedSamplesQueue.Count is 0)
+            if (encodedAudioPacketsQueue.Count is 0)
             {
                 //Logger.LogError("Encoded queue is empty");
                 return null;
             }
 
-            if (!encodedSamplesQueue.TryDequeue(out byte[]? samples))
+            if (!encodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
             {
                 //Logger.LogError("Cannot get the first encoded samples");
                 return null;
             }
 
-            return samples;
+            return encodedAudioPacket;
         }
 
         /// <summary>
@@ -123,11 +124,11 @@ namespace VoiceChatSharp.VoiceChat
         {
             Span<byte> encodedOutputSpan = new Span<byte>(encodedSamples);
 
-            int encodedOutputLength = opusEncoder.Encode(samples, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float) / Channels, encodedSamples, encodedSamples.Length);
+            int encodedOutputLength = opusEncoder.Encode(samples, Helper.GetTotalBytes(SampleRate, recorderInterface.FrameSizeMS, Channels, BytesPerSample) / sizeof(float) / Channels, encodedSamples, encodedSamples.Length);
 
             Span<byte> encodedSlice = encodedOutputSpan.Slice(0, encodedOutputLength);
 
-            encodedSamplesQueue.Enqueue(encodedSlice.ToArray());
+            encodedAudioPacketsQueue.Enqueue(new EncodedAudioPacket(DateTimeOffset.Now.ToUnixTimeMilliseconds(), encodedSlice.ToArray()));
         }
 
         /// <summary>

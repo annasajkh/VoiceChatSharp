@@ -49,7 +49,7 @@ namespace VoiceChatSharp.Networking
             {
                 if (peer.Id != connectedPeer.Id)
                 {
-                    SendPacket(new ServerToClientEncodedAudioPacket(peer.Id, clientEncodedAudioPacket.Data), connectedPeer, DeliveryMethod.ReliableOrdered);
+                    SendPacket(new ServerToClientEncodedAudioPacket(peer.Id, clientEncodedAudioPacket.PacketTimeMS, clientEncodedAudioPacket.Data), connectedPeer, DeliveryMethod.ReliableOrdered);
                 }
             }
         }

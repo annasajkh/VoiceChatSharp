@@ -1,4 +1,5 @@
 ﻿using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.VoiceChat
@@ -7,14 +8,16 @@ namespace VoiceChatSharp.VoiceChat
     {
         public VoiceChatAudioSourceInterface VoiceChatAudioSourceInterface { get; private set; }
 
+        public long TimeForAudioSamplesToArrive { get; private set; }
+
         public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
         {
             VoiceChatAudioSourceInterface = voiceChatAudioSourceInterface;
         }
 
-        public void EnqueueEncodedSample(byte[] encodedSample)
+        public void EnqueueEncodedAudioPacket(EncodedAudioPacket encodedAudioPacket)
         {
-            VoiceChatAudioSourceInterface.EncodedSamplesQueue.Enqueue(encodedSample);
+            VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Enqueue(encodedAudioPacket);
         }
 
 
@@ -37,21 +40,28 @@ namespace VoiceChatSharp.VoiceChat
 
         public void Update()
         {
-            if (!VoiceChatAudioSourceInterface.EncodedSamplesQueue.TryDequeue(out byte[]? samples))
+            if (!VoiceChatAudioSourceInterface.IsAudioDeviceWantSamples())
             {
                 return;
             }
 
+            if (!VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
+            {
+                return;
+            }
+
+            TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
+
             Span<float> decodedSamples;
 
-            int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, Global.FrameSizeMs, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
+            int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, VoiceChatAudioSourceInterface.FrameSizeMS, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
 
             unsafe
             {
                 decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
             }
 
-            VoiceChatAudioSourceInterface.OpusDecoder.Decode(samples, samples.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
+            VoiceChatAudioSourceInterface.OpusDecoder.Decode(encodedAudioPacket.Data, encodedAudioPacket.Data.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
             VoiceChatAudioSourceInterface.Update();
         }
 

@@ -7,6 +7,7 @@ using System.Timers;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.NetworkPacket.ClientToServer;
 using VoiceChatSharp.VoiceChat;
+using VoiceChatSharp.NetworkStorageData.Shared;
 
 namespace VoiceChatSharp.Networking
 {
@@ -152,12 +153,12 @@ namespace VoiceChatSharp.Networking
         {
             if (VoiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
             {
-                VoiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+                VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
             }
             else
             {
                 VoiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
-                VoiceChatPlayer.QueueEncodedSample(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
+                VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
             }
         }
 
@@ -178,15 +179,13 @@ namespace VoiceChatSharp.Networking
         {
             if (IsInServer && serverPeer != null)
             {
-                byte[]? encodedSampleResult = VoiceChatRecorder.GetTheFirstEncodedSample();
+                EncodedAudioPacket? encodedAudioPacketResult = VoiceChatRecorder.GetTheFirstEncodedAudioPacket();
 
-                if (encodedSampleResult is null)
+                if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
                 {
-                    return;
+                    // Sending Encoded Audio Flow 1
+                    SendPacket(new ClientToServerEncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data), serverPeer, DeliveryMethod.ReliableSequenced);
                 }
-
-                // Sending Encoded Audio Flow 1
-                SendPacket(new ClientToServerEncodedAudioPacket(encodedSampleResult), serverPeer, DeliveryMethod.Sequenced);
             }
 
             base.Update();

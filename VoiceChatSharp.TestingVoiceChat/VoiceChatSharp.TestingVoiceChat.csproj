@@ -8,6 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <PublishAot>True</PublishAot>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

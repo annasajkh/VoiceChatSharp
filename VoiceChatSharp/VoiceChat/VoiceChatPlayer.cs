@@ -1,5 +1,6 @@
 ﻿using OpusSharp.Core;
 using VoiceChatSharp.Interfaces;
+using VoiceChatSharp.NetworkStorageData.Shared;
 
 namespace VoiceChatSharp.VoiceChat
 {
@@ -21,11 +22,11 @@ namespace VoiceChatSharp.VoiceChat
             updateThread.Start();
         }
 
-        public void QueueEncodedSample(int id, byte[] encodedSample)
+        public void QueueEncodedAudioPacket(int id, EncodedAudioPacket encodedAudioPacket)
         {
             if (voiceChatPlayerInterface.VoiceChatAudioSources.ContainsKey(id))
             {
-                voiceChatPlayerInterface.VoiceChatAudioSources[id].EnqueueEncodedSample(encodedSample);
+                voiceChatPlayerInterface.VoiceChatAudioSources[id].EnqueueEncodedAudioPacket(encodedAudioPacket);
             }
         }
 
@@ -72,7 +73,7 @@ namespace VoiceChatSharp.VoiceChat
         public void AddVoiceChatAudioSource<T>(int id) where T : VoiceChatAudioSourceInterface, new()
         {
             voiceChatPlayerInterface.VoiceChatAudioSources[id] = new VoiceChatAudioSource(new T());
-            voiceChatPlayerInterface.VoiceChatAudioSources[id].VoiceChatAudioSourceInterface.Init(SampleRate, Channels, BytesPerSample, OpusDecoder);
+            voiceChatPlayerInterface.VoiceChatAudioSources[id].VoiceChatAudioSourceInterface.Init(SampleRate, Channels, BytesPerSample, voiceChatPlayerInterface.FrameSizeMS, OpusDecoder);
 
             voiceChatPlayerInterface.AddVoiceChatAudioSourceCallback<T>(id);
         }

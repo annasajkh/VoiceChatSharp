@@ -1,11 +1,12 @@
 ﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.Interfaces
 {
-    public class VoiceChatAudioSourceInterface
+    public class VoiceChatAudioSourceInterface : IDisposable
     {
         public int SampleRate { get; protected set; }
         public int Channels { get; protected set; }
@@ -14,13 +15,14 @@ namespace VoiceChatSharp.Interfaces
         public float Volume { get; protected set; }
 
         public unsafe IntPtr DecodedSamplesPtr { get; private set; }
+        public int FrameSizeMS { get; private set; }
 
         public OpusDecoder OpusDecoder { get; set; }
 
         /// <summary>
         /// Contains encoded samples encoded by opus
         /// </summary>
-        public ConcurrentQueue<byte[]> EncodedSamplesQueue { get; private set; } = new();
+        public ConcurrentQueue<EncodedAudioPacket> EncodedAudioPacketsQueue { get; private set; } = new();
         public ConcurrentQueue<float[]> DecodedSamplesQueue { get; private set; } = new();
 
         bool isDisposed;
@@ -28,15 +30,16 @@ namespace VoiceChatSharp.Interfaces
         /// <summary>
         /// Initialize the audio source.
         /// </summary>
-        public virtual void Init(int sampleRate, int channels, int bytesPerSample, OpusDecoder opusDecoder)
+        public virtual void Init(int sampleRate, int channels, int bytesPerSample, int frameSizeMS, OpusDecoder opusDecoder)
         {
             SampleRate = sampleRate;
             Channels = channels;
             OpusDecoder = opusDecoder;
             BytesPerSample = bytesPerSample;
             Volume = 1;
+            FrameSizeMS = frameSizeMS;
 
-            DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
+            DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample));
         }
 
 
@@ -59,7 +62,15 @@ namespace VoiceChatSharp.Interfaces
         }
 
         /// <summary>
-        /// Implement this in the backend
+        /// The first update should be checking if the audio device want a samples
+        /// </summary>
+        public virtual bool IsAudioDeviceWantSamples()
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// The last update after opus decoding
         /// </summary>
         public virtual void Update()
         {

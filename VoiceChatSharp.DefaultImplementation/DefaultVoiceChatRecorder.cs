@@ -25,10 +25,8 @@ namespace VoiceChatSharp.DefaultImplementation
         bool isRecording;
         bool isDisposed;
 
-        public DefaultVoiceChatRecorder(int sampleRate = 16000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
+        public DefaultVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
-            readBufferPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
-
             if (!SDL.Init(SDLInitFlags.Audio))
             {
                 unsafe
@@ -37,6 +35,22 @@ namespace VoiceChatSharp.DefaultImplementation
                     throw new Exception($"Cannot initialize sdl audio SDL_Error: {errorMessage}");
                 }
             }
+
+            FrameSizeMS = 20;
+
+            int sampleFrames = Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample) / Channels / sizeof(float);
+
+            if (!SDL.SetHintWithPriority(SDL.SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, $"{sampleFrames}", SDLHintPriority.Override))
+            {
+                unsafe
+                {
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+
+                    throw new Exception($"cannot set SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES SDL_Error: {errorMessage}");
+                }
+            }
+
+            readBufferPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample));
 
             SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
             sdlAudioSpec.Format = SDLAudioFormat.F32;
@@ -91,6 +105,17 @@ namespace VoiceChatSharp.DefaultImplementation
                     physicalDeviceID = 0xFFFFFFFEu;
                     logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
                 }
+
+                int sampleFrames;
+
+                if (!SDL.GetAudioDeviceFormat(logicalDeviceID, &sdlAudioSpec, &sampleFrames))
+                {
+                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                    throw new Exception($"Cannot get audio device format SDL_Error: {errorMessage}");
+                }
+
+                Console.WriteLine($"Sample frames: {sampleFrames}");
+                Console.WriteLine($"Frame size ms: {sampleFrames * 1000 / SampleRate}");
 
                 SDL.BindAudioStream(logicalDeviceID, audioStream);
 
@@ -194,13 +219,13 @@ namespace VoiceChatSharp.DefaultImplementation
                 {
                     unsafe
                     {
-                        if (SDL.GetAudioStreamAvailable(audioStream) >= Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample))
+                        if (SDL.GetAudioStreamAvailable(audioStream) >= Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample))
                         {
-                            int bytesRead = SDL.GetAudioStreamData(audioStream, (void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample));
+                            int bytesRead = SDL.GetAudioStreamData(audioStream, (void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample));
 
                             if (bytesRead > 0)
                             {
-                                Span<float> rawAudioData = new Span<float>((void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, Global.FrameSizeMs, Channels, BytesPerSample) / sizeof(float));
+                                Span<float> rawAudioData = new Span<float>((void*)readBufferPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample) / sizeof(float));
 
                                 OnSampleReadInternal(rawAudioData);
                             }

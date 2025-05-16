@@ -9,6 +9,7 @@ namespace VoiceChatSharp.Interfaces
         public int BytesPerSample { get; private set; }
         public float Volume { get; protected set; }
         public bool Playing { get; protected set; }
+        public int FrameSizeMS { get; protected set; }
 
         public Dictionary<int, VoiceChatAudioSource> VoiceChatAudioSources { get; private set; } = new();
 

@@ -7,6 +7,7 @@
         public int BytesPerSample { get; protected set; }
         public string? RecodingDevice { get; private set; }
         public float Volume { get; protected set; }
+        public int FrameSizeMS { get; protected set; }
 
 
         public delegate void SampleFlow(Span<float> samples);
