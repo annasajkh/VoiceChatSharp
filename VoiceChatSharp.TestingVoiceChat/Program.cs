@@ -6,6 +6,8 @@ namespace VoiceChatSharp.TestingVoiceChat;
 
 internal class Program
 {
+    static CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+
     static void Main(string[] args)
     {
         using VoiceChatRecorder voiceChatRecorder = new VoiceChatRecorder(new DefaultVoiceChatRecorder());
@@ -52,14 +54,23 @@ internal class Program
 
         voiceChatPlayer.Play();
 
-        while (true)
-        {
-            EncodedAudioPacket? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
 
-            if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
+        Task.Factory.StartNew(() =>
+        {
+            while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
-                voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
+                EncodedAudioPacket? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
+
+                if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
+                {
+                    voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
+                }
             }
-        }
+        }, cancellationTokenSource.Token);
+
+        Console.WriteLine("Press enter to exit...");
+        Console.Read();
+
+        cancellationTokenSource.Cancel();
     }
 }

@@ -1,10 +1,10 @@
-﻿using VoiceChatSharp.Interfaces;
+﻿using Hexa.NET.SDL3;
 using System;
 using System.Collections.Generic;
-using Hexa.NET.SDL3;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation
@@ -12,10 +12,10 @@ namespace VoiceChatSharp.DefaultImplementation
     public class DefaultVoiceChatRecorder : VoiceChatRecorderInterface
     {
         unsafe SDLAudioStream* audioStream;
-        
+
         uint logicalDeviceID;
         uint physicalDeviceID;
-        
+
         IntPtr readBufferPtr;
         Thread readSampleThread;
 
@@ -25,7 +25,9 @@ namespace VoiceChatSharp.DefaultImplementation
         bool isRecording;
         bool isDisposed;
 
-        public DefaultVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
+        CancellationTokenSource cancellationTokenSource = new();
+
+        public DefaultVoiceChatRecorder(int sampleRate = 16000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
             if (!SDL.Init(SDLInitFlags.Audio))
             {
@@ -135,7 +137,7 @@ namespace VoiceChatSharp.DefaultImplementation
         void RefreshAudioDeviceMapping()
         {
             audioDevicesMapping.Clear();
-            
+
             unsafe
             {
                 int recordingDeviceCount;
@@ -213,7 +215,7 @@ namespace VoiceChatSharp.DefaultImplementation
         {
             SpinWait spinWait = new SpinWait();
 
-            while (true)
+            while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
                 if (isRecording)
                 {
@@ -269,7 +271,7 @@ namespace VoiceChatSharp.DefaultImplementation
 
             isDisposed = true;
 
-            readSampleThread.Abort();
+            cancellationTokenSource.Cancel();
 
             unsafe
             {

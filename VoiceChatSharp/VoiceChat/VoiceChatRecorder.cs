@@ -23,10 +23,11 @@ namespace VoiceChatSharp.VoiceChat
         OpusEncoder opusEncoder;
 
         public ConcurrentQueue<EncodedAudioPacket> encodedAudioPacketsQueue = new();
-        
+
         byte[] encodedSamples;
 
         bool useNoiseSuppression;
+        bool isDisposed;
 
         /// <summary>
         /// The constructor for VoiceChatRecorder
@@ -136,6 +137,13 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public override void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            isDisposed = true;
+
             recorderInterface.Dispose();
             opusEncoder.Dispose();
         }

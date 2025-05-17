@@ -20,7 +20,7 @@ namespace VoiceChatSharp.DefaultImplementation
         bool alreadyInitialized;
         bool isDisposed;
 
-        public DefaultVoiceChatPlayer(int sampleRate = 48000, int channels = 2, string? playingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
+        public DefaultVoiceChatPlayer(int sampleRate = 16000, int channels = 2, string? playingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
             if (!SDL.Init(SDLInitFlags.Audio))
             {
