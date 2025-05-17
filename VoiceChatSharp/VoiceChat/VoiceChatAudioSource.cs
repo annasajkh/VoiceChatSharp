@@ -10,6 +10,9 @@ namespace VoiceChatSharp.VoiceChat
 
         public long TimeForAudioSamplesToArrive { get; private set; }
 
+        int sampleNeededToAvoidAudioDeviceFromGettingDried;
+        bool isSampling;
+
         public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
         {
             VoiceChatAudioSourceInterface = voiceChatAudioSourceInterface;
@@ -45,12 +48,33 @@ namespace VoiceChatSharp.VoiceChat
                 return;
             }
 
+            if (!isSampling)
+            {
+                if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried)
+                {
+                    return;
+                }
+                else
+                {
+                    isSampling = true;
+                }
+            }
+            else
+            {
+                if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried / 4)
+                {
+                    isSampling = false;
+                }
+            }
+
             if (!VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
             {
                 return;
             }
 
             TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
+
+            sampleNeededToAvoidAudioDeviceFromGettingDried = (int)(TimeForAudioSamplesToArrive / VoiceChatAudioSourceInterface.FrameSizeMS) * 2;
 
             Span<float> decodedSamples;
 

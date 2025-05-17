@@ -1,10 +1,10 @@
-﻿using VoiceChatSharp.Interfaces;
-using System.Collections.Generic;
-using Hexa.NET.SDL3;
-using System.Runtime.InteropServices;
+﻿using Hexa.NET.SDL3;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
+using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation
