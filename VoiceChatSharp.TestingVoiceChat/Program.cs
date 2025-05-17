@@ -50,7 +50,6 @@ internal class Program
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
         voiceChatPlayer.PlayAudioSource(0);
 
-        voiceChatPlayer.SetVolume(2);
         voiceChatPlayer.Play();
 
         while (true)
