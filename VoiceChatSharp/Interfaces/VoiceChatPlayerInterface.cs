@@ -32,6 +32,8 @@ namespace VoiceChatSharp.Interfaces
 
         }
 
+        public abstract void Update();
+
         /// <summary>
         /// Get all playback device names.
         /// </summary>

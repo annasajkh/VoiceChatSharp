@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
+using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.DefaultImplementation
 {
@@ -20,7 +21,11 @@ namespace VoiceChatSharp.DefaultImplementation
         bool alreadyInitialized;
         bool isDisposed;
 
-        public DefaultVoiceChatPlayer(int sampleRate = 16000, int channels = 2, string? playingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
+        float[] mixedSample;
+
+        public unsafe SDLAudioStream* audioStream { get; private set; }
+
+        public DefaultVoiceChatPlayer(int sampleRate = 48000, int channels = 2, string? playingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
         {
             if (!SDL.Init(SDLInitFlags.Audio))
             {
@@ -45,7 +50,63 @@ namespace VoiceChatSharp.DefaultImplementation
                 }
             }
 
+            SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
+            sdlAudioSpec.Format = SDLAudioFormat.F32;
+            sdlAudioSpec.Freq = SampleRate;
+            sdlAudioSpec.Channels = Channels;
+
+            unsafe
+            {
+                audioStream = SDL.CreateAudioStream(&sdlAudioSpec, (SDLAudioSpec*)IntPtr.Zero);
+            }
+
             InitDevice(sampleRate, channels, playingDevice);
+
+            mixedSample = new float[Helper.GetTotalBytes(sampleRate, FrameSizeMS, Channels, BytesPerSample) / sizeof(float)];
+        }
+
+        public override void Update()
+        {
+            int totalSamplesBytes = Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample);
+
+            unsafe
+            {
+                if (SDL.GetAudioStreamQueued(audioStream) >= totalSamplesBytes)
+                {
+                    return;
+                }
+            }
+
+            foreach (VoiceChatAudioSource VoiceChatAudioSource in VoiceChatAudioSources.Values)
+            {
+                if (!VoiceChatAudioSource.VoiceChatAudioSourceInterface.DecodedSamplesQueue.TryDequeue(out float[] decodedSample))
+                {
+                    continue;
+                }
+
+                unsafe
+                {
+                    fixed (float* mixedSamplePtr = mixedSample)
+                    fixed (float* decodedSamplePtr = decodedSample)
+                    {
+                        SDL.MixAudio((byte*)mixedSamplePtr, (byte*)decodedSamplePtr, SDLAudioFormat.F32, (uint)(totalSamplesBytes), Volume);
+                    }
+                }
+            }
+
+            unsafe
+            {
+                fixed (float* mixedSamplePtr = mixedSample)
+                {
+                    if (!SDL.PutAudioStreamData(audioStream, mixedSamplePtr, totalSamplesBytes))
+                    {
+                        string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
+                        Logger.LogWarning($"Cannot put audio stream data SDL_Error: {errorMessage}");
+                    }
+                }
+            }
+
+            Array.Clear(mixedSample, 0, mixedSample.Length);
         }
 
         void InitDevice(int sampleRate, int channels, string? playbackDevice = null)
@@ -80,16 +141,7 @@ namespace VoiceChatSharp.DefaultImplementation
                     logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
                 }
 
-                int sampleFrames;
-
-                if (!SDL.GetAudioDeviceFormat(logicalDeviceID, &sdlAudioSpec, &sampleFrames))
-                {
-                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                    throw new Exception($"Cannot get audio device format SDL_Error: {errorMessage}");
-                }
-
-                Console.WriteLine($"Sample frames: {sampleFrames}");
-                Console.WriteLine($"Frame size ms: {sampleFrames * 1000 / SampleRate}");
+                SDL.BindAudioStream(logicalDeviceID, audioStream);
 
                 if (alreadyInitialized && Playing)
                 {
@@ -170,40 +222,6 @@ namespace VoiceChatSharp.DefaultImplementation
             return currentPlaybackAudioDeviceName;
         }
 
-        public override void AddVoiceChatAudioSourceCallback<T>(int id)
-        {
-            VoiceChatAudioSourceInterface voiceChatAudioSourceInterface = VoiceChatAudioSources[id].VoiceChatAudioSourceInterface;
-
-            if (voiceChatAudioSourceInterface is DefaultVoiceChatAudioSource defaultVoiceChatAudioSource)
-            {
-                unsafe
-                {
-                    SDL.BindAudioStream(logicalDeviceID, defaultVoiceChatAudioSource.AudioStream);
-                }
-            }
-            else
-            {
-                throw new Exception("DefaultVoiceChatPlayer must be adding DefaultVoiceChatAudioSource");
-            }
-        }
-
-        public override void RemoveVoiceChatAudioSourceCallback(int id)
-        {
-            VoiceChatAudioSourceInterface voiceChatAudioSourceInterface = VoiceChatAudioSources[id].VoiceChatAudioSourceInterface;
-
-            if (voiceChatAudioSourceInterface is DefaultVoiceChatAudioSource defaultVoiceChatAudioSource)
-            {
-                unsafe
-                {
-                    SDL.UnbindAudioStream(defaultVoiceChatAudioSource.AudioStream);
-                }
-            }
-            else
-            {
-                throw new Exception("DefaultVoiceChatPlayer must be adding DefaultVoiceChatAudioSource");
-            }
-        }
-
         /// <summary>
         /// Play the audio source.
         /// </summary>
@@ -214,6 +232,7 @@ namespace VoiceChatSharp.DefaultImplementation
             unsafe
             {
                 SDL.ResumeAudioDevice(logicalDeviceID);
+                SDL.ResumeAudioStreamDevice(audioStream);
             }
         }
 
@@ -241,6 +260,7 @@ namespace VoiceChatSharp.DefaultImplementation
             unsafe
             {
                 SDL.PauseAudioDevice(logicalDeviceID);
+                SDL.PauseAudioStreamDevice(audioStream);
             }
         }
 
@@ -259,6 +279,7 @@ namespace VoiceChatSharp.DefaultImplementation
             unsafe
             {
                 SDL.CloseAudioDevice(logicalDeviceID);
+                SDL.DestroyAudioStream(audioStream);
             }
         }
     }

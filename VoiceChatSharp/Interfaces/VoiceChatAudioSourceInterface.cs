@@ -62,14 +62,6 @@ namespace VoiceChatSharp.Interfaces
         }
 
         /// <summary>
-        /// The first update should be checking if the audio device want a samples
-        /// </summary>
-        public virtual bool IsAudioDeviceWantSamples()
-        {
-            return false;
-        }
-
-        /// <summary>
         /// The last update after opus decoding
         /// </summary>
         public virtual void Update()

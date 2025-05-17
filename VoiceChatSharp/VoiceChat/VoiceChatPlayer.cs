@@ -140,6 +140,8 @@ namespace VoiceChatSharp.VoiceChat
                     {
                         voiceChatAudioSource.Update();
                     }
+
+                    voiceChatPlayerInterface.Update();
                 }
 
                 spinWait.SpinOnce();

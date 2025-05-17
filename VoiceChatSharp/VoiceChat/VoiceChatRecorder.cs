@@ -26,21 +26,19 @@ namespace VoiceChatSharp.VoiceChat
 
         byte[] encodedSamples;
 
-        bool useNoiseSuppression;
         bool isDisposed;
 
         /// <summary>
         /// The constructor for VoiceChatRecorder
         /// </summary>
         /// <param name="recorderInterface">The recorder interface to use</param>
-        /// <param name="useNoiseSuppression">whenever using noise suppression or not it uses RNNoise library</param>
         public VoiceChatRecorder(VoiceChatRecorderInterface recorderInterface) : base(recorderInterface.SampleRate, recorderInterface.Channels, recorderInterface.BytesPerSample)
         {
             this.recorderInterface = recorderInterface;
+
             recorderInterface.OnSampleRead += OnSampleRead;
 
             opusEncoder = new OpusEncoder(sample_rate: recorderInterface.SampleRate, channels: recorderInterface.Channels, application: OpusPredefinedValues.OPUS_APPLICATION_VOIP);
-
 
             encodedSamples = new byte[1000];
         }
@@ -125,7 +123,9 @@ namespace VoiceChatSharp.VoiceChat
         {
             Span<byte> encodedOutputSpan = new Span<byte>(encodedSamples);
 
-            int encodedOutputLength = opusEncoder.Encode(samples, Helper.GetTotalBytes(SampleRate, recorderInterface.FrameSizeMS, Channels, BytesPerSample) / sizeof(float) / Channels, encodedSamples, encodedSamples.Length);
+            int frameSize = Helper.GetTotalBytes(SampleRate, recorderInterface.FrameSizeMS, Channels, BytesPerSample) / sizeof(float) / Channels;
+
+            int encodedOutputLength = opusEncoder.Encode(samples, frameSize, encodedSamples, encodedSamples.Length);
 
             Span<byte> encodedSlice = encodedOutputSpan.Slice(0, encodedOutputLength);
 

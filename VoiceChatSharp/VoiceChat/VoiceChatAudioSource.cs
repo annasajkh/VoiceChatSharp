@@ -45,11 +45,6 @@ namespace VoiceChatSharp.VoiceChat
 
         public void Update()
         {
-            if (!VoiceChatAudioSourceInterface.IsAudioDeviceWantSamples())
-            {
-                return;
-            }
-
             if (!isSampling)
             {
                 if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried)
@@ -63,13 +58,18 @@ namespace VoiceChatSharp.VoiceChat
             }
             else
             {
-                if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried / 4)
+                if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried / 2)
                 {
                     isSampling = false;
                 }
             }
 
             if (!VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
+            {
+                return;
+            }
+
+            if (!VoiceChatAudioSourceInterface.Playing)
             {
                 return;
             }
