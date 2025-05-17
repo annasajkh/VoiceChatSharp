@@ -13,6 +13,8 @@ namespace VoiceChatSharp.VoiceChat
         int sampleNeededToAvoidAudioDeviceFromGettingDried;
         bool isSampling;
 
+        bool isDisposed;
+
         public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
         {
             VoiceChatAudioSourceInterface = voiceChatAudioSourceInterface;
@@ -102,6 +104,13 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            isDisposed = true;
+
             VoiceChatAudioSourceInterface.Dispose();
         }
     }

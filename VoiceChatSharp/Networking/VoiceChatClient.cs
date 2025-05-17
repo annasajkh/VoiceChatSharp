@@ -1,13 +1,13 @@
-﻿using LiteNetLib.Utils;
-using LiteNetLib;
-using VoiceChatSharp.Utils;
-using VoiceChatSharp.NetworkPacket.ServerToClient;
-using Timer = System.Timers.Timer;
+﻿using LiteNetLib;
+using LiteNetLib.Utils;
 using System.Timers;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.NetworkPacket.ClientToServer;
-using VoiceChatSharp.VoiceChat;
+using VoiceChatSharp.NetworkPacket.ServerToClient;
 using VoiceChatSharp.NetworkStorageData.Shared;
+using VoiceChatSharp.Utils;
+using VoiceChatSharp.VoiceChat;
+using Timer = System.Timers.Timer;
 
 namespace VoiceChatSharp.Networking
 {
@@ -29,6 +29,7 @@ namespace VoiceChatSharp.Networking
         double joiningAttemptTime = 500;
         int joiningAttempt = 6;
         Timer joiningAttemptTimer;
+        bool isDisposed;
 
         public VoiceChatClient(VoiceChatRecorder voiceChatRecorder, VoiceChatPlayer voiceChatPlayer, string name, bool muted = false, bool deafened = false, byte volume = 100) : base(NetworkLoggerType.Client)
         {
@@ -198,6 +199,13 @@ namespace VoiceChatSharp.Networking
 
         public void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            isDisposed = true;
+
             VoiceChatRecorder.Dispose();
             VoiceChatPlayer.Dispose();
         }

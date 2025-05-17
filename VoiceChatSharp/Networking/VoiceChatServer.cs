@@ -1,9 +1,9 @@
-﻿using LiteNetLib.Utils;
-using LiteNetLib;
-using VoiceChatSharp.Utils;
-using VoiceChatSharp.NetworkStorageData.Shared;
-using VoiceChatSharp.NetworkPacket.ServerToClient;
+﻿using LiteNetLib;
+using LiteNetLib.Utils;
 using VoiceChatSharp.NetworkPacket.ClientToServer;
+using VoiceChatSharp.NetworkPacket.ServerToClient;
+using VoiceChatSharp.NetworkStorageData.Shared;
+using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.Networking
 {

@@ -10,7 +10,10 @@ namespace VoiceChatSharp.VoiceChat
 
         VoiceChatPlayerInterface voiceChatPlayerInterface;
 
+        CancellationTokenSource cancellationTokenSource = new();
         Thread updateThread;
+
+        bool isDisposed;
 
         public VoiceChatPlayer(VoiceChatPlayerInterface voiceChatPlayerInterface) : base(voiceChatPlayerInterface.SampleRate, voiceChatPlayerInterface.Channels, voiceChatPlayerInterface.BytesPerSample)
         {
@@ -129,7 +132,7 @@ namespace VoiceChatSharp.VoiceChat
         {
             SpinWait spinWait = new();
 
-            while (true)
+            while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
                 if (voiceChatPlayerInterface.Playing)
                 {
@@ -164,12 +167,20 @@ namespace VoiceChatSharp.VoiceChat
         /// </summary>
         public override void Dispose()
         {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            isDisposed = true;
+
+            cancellationTokenSource.Cancel();
+
             foreach (VoiceChatAudioSource voiceChatAudioSource in voiceChatPlayerInterface.VoiceChatAudioSources.Values)
             {
                 voiceChatAudioSource.Dispose();
             }
 
-            updateThread.Abort();
             voiceChatPlayerInterface.VoiceChatAudioSources.Clear();
 
             voiceChatPlayerInterface.Dispose();
