@@ -49,10 +49,12 @@ internal class Program
 
         voiceChatRecorder.StartRecording();
 
+
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
         voiceChatPlayer.PlayAudioSource(0);
 
         voiceChatPlayer.Play();
+        voiceChatPlayer.SetVolume(2);
 
 
         Task.Factory.StartNew(() =>
@@ -63,6 +65,7 @@ internal class Program
 
                 if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
                 {
+
                     voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
                 }
             }

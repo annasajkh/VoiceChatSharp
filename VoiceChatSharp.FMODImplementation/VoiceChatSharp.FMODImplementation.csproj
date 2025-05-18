@@ -1,0 +1,86 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) == 'X86'">
+		<IsX86>true</IsX86>
+	</PropertyGroup>
+	
+	<PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) == 'X64'">
+		<IsX64>true</IsX64>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) == 'Arm32'">
+		<IsArm32>true</IsArm32>
+	</PropertyGroup>
+	
+	<PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) == 'Arm64'">
+		<IsArm64>true</IsArm64>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Content Include="native\win-x86\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Windows')) AND $(IsX86) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\win-x86\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+		
+		<Content Include="native\win-x64\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Windows')) AND $(IsX64) == 'true'">PreserveNewest</CopyToOutputDirectory>
+			
+			<PackagePath>runtimes\win-x64\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+
+		<Content Include="native\win-arm64\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Windows')) AND $(Arm64) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\win-arm64\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+
+		<Content Include="native\linux-x86\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Linux')) AND $(IsX86) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\linux-x86\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+
+		<Content Include="native\linux-x64\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Linux')) AND $(IsX64) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\linux-x64\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+
+		<Content Include="native\linux-arm32\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Linux')) AND $(Arm32) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\linux-arm32\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+
+		<Content Include="native\linux-arm64\**" Visible="false">
+			<CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('Linux')) AND $(Arm64) == 'true'">PreserveNewest</CopyToOutputDirectory>
+
+			<PackagePath>runtimes\linux-arm64\native</PackagePath>
+			<Pack>True</Pack>
+			<Link>%(Filename)%(Extension)</Link>
+		</Content>
+	</ItemGroup>
+	
+	<ItemGroup>
+		<ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
+	</ItemGroup>
+</Project>

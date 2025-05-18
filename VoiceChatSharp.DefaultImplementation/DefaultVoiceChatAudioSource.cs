@@ -4,46 +4,78 @@ using System;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 
-namespace VoiceChatSharp.DefaultImplementation
+namespace VoiceChatSharp.DefaultImplementation;
+
+public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
 {
-    public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
+    public unsafe SDLAudioStream* AudioStream;
+
+    public override void Init(int sampleRate, int channels, int bytesPerSample, int frameSizeMS, OpusDecoder opusDecoder)
     {
-        public override void Init(int sampleRate, int channels, int bytesPerSample, int frameSizeMS, OpusDecoder opusDecoder)
-        {
-            base.Init(sampleRate, channels, bytesPerSample, frameSizeMS, opusDecoder);
+        base.Init(sampleRate, channels, bytesPerSample, frameSizeMS, opusDecoder);
 
-            SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
-            sdlAudioSpec.Format = SDLAudioFormat.F32;
-            sdlAudioSpec.Freq = SampleRate;
-            sdlAudioSpec.Channels = Channels;
+        SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
+        sdlAudioSpec.Format = SDLAudioFormat.F32;
+        sdlAudioSpec.Freq = SampleRate;
+        sdlAudioSpec.Channels = Channels;
+
+        unsafe
+        {
+            AudioStream = SDL.CreateAudioStream(&sdlAudioSpec, (SDLAudioSpec*)IntPtr.Zero);
+        }
+    }
+
+    public override void Update()
+    {
+        unsafe
+        {
+            Span<float> decodedSamples = new Span<float>((void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample / sizeof(float)));
+            DecodedSamplesQueue.Enqueue(decodedSamples.ToArray());
+        }
+    }
+
+    public override void Play()
+    {
+        Playing = true;
+
+        unsafe
+        {
+            SDL.ResumeAudioStreamDevice(AudioStream);
+        }
+    }
+
+    public override void Pause()
+    {
+        Playing = false;
+
+        unsafe
+        {
+            SDL.PauseAudioStreamDevice(AudioStream);
+        }
+    }
+
+    public override void SetVolume(float volume)
+    {
+        Volume = volume;
+
+        unsafe
+        {
+            SDL.SetAudioStreamGain(AudioStream, Volume);
+        }
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+
+        if (isDisposed)
+        {
+            return;
         }
 
-        public override void Update()
+        unsafe
         {
-            unsafe
-            {
-                Span<float> decodedSamples = new Span<float>((void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample / sizeof(float)));
-
-                // mixes into itself to just change the volume
-                SDL.MixAudio((byte*)DecodedSamplesPtr, (byte*)DecodedSamplesPtr, SDLAudioFormat.F32, (uint)Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample), Volume);
-
-                DecodedSamplesQueue.Enqueue(decodedSamples.ToArray());
-            }
-        }
-
-        public override void Play()
-        {
-            Playing = true;
-        }
-
-        public override void Pause()
-        {
-            Playing = false;
-        }
-
-        public override void SetVolume(float volume)
-        {
-            Volume = volume;
+            SDL.DestroyAudioStream(AudioStream);
         }
     }
 }

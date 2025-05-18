@@ -5,8 +5,8 @@ Miniaudio-CS/Miniaudio-CS/bin
 Miniaudio-CSMiniaudio-CS/obj
 RNNoise.NET/bin
 RNNoise.NET/obj
-VoiceChatSharp.TestingVoiceChat/bin
-VoiceChatSharp.TestingVoiceChat/obj
+VoiceChatSharp.TestingDefaultVoiceChat/bin
+VoiceChatSharp.TestingDefaultVoiceChat/obj
 VoiceChatSharp.TestingClient/bin
 VoiceChatSharp.TestingClient/obj
 VoiceChatSharp.TestingServer/bin
@@ -15,3 +15,7 @@ VoiceChatSharp/bin
 VoiceChatSharp/obj
 VoiceChatSharp.DefaultImplementation/bin
 VoiceChatSharp.DefaultImplementation/obj
+VoiceChatSharp.TestingFMODVoiceChat/bin
+VoiceChatSharp.TestingFMODVoiceChat/obj
+VoiceChatSharp.FMODImplementation/bin
+VoiceChatSharp.FMODImplementation/obj
