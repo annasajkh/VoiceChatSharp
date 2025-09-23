@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using VoiceChatSharp.Interfaces;
 
 namespace VoiceChatSharp.FMODImplementation;
 
 public class FMODVoiceChatRecorder : VoiceChatRecorderInterface
 {
-    public FMODVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4, recodingDevice)
+    Dictionary<string, int> audioDevicesMapping = new();
+
+    public FMODVoiceChatRecorder(int sampleRate = 48000, int channels = 2, string? recodingDevice = null) : base(sampleRate, channels, 4)
     {
         if (Global.FMODSystem is null)
         {
@@ -18,16 +21,14 @@ public class FMODVoiceChatRecorder : VoiceChatRecorderInterface
             }
 
             Global.FMODSystem = system;
-
             Global.FMODSystem.Value.init(Channels, FMOD.INITFLAGS.NORMAL, IntPtr.Zero);
         }
-
-
-        RefreshAudioDeviceMapping();
     }
 
     void RefreshAudioDeviceMapping()
     {
+        audioDevicesMapping.Clear();
+
         int recordDriverCount;
         int recordDriverConnectedCount;
 
@@ -40,7 +41,6 @@ public class FMODVoiceChatRecorder : VoiceChatRecorderInterface
 
         for (int i = 0; i < recordDriverConnectedCount; i++)
         {
-
             Global.FMODSystem!.Value.getRecordDriverInfo(i, out string name, 256, out Guid guid, out int systemRate, out FMOD.SPEAKERMODE speakerMode, out int speakerModeChannels, out FMOD.DRIVER_STATE driveState);
 
             if (name.Contains("[loopback]"))
@@ -48,10 +48,8 @@ public class FMODVoiceChatRecorder : VoiceChatRecorderInterface
                 continue;
             }
 
-
+            audioDevicesMapping.Add(name, i);
         }
-
-        Console.Read();
     }
 
     public override string GetCurrentRecordingDeviceName()
@@ -61,7 +59,9 @@ public class FMODVoiceChatRecorder : VoiceChatRecorderInterface
 
     public override List<string> GetRecordingDeviceNames()
     {
-        throw new System.NotImplementedException();
+        RefreshAudioDeviceMapping();
+
+        return audioDevicesMapping.Keys.ToList();
     }
 
     public override void SetCurrentRecordingDevice(string name)

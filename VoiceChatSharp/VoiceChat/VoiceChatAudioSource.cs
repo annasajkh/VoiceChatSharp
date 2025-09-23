@@ -76,7 +76,7 @@ public class VoiceChatAudioSource : IDisposable
 
         TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
 
-        sampleNeededToAvoidAudioDeviceFromGettingDried = (int)(TimeForAudioSamplesToArrive / VoiceChatAudioSourceInterface.FrameSizeMS) * 2;
+        sampleNeededToAvoidAudioDeviceFromGettingDried = (int)(TimeForAudioSamplesToArrive / VoiceChatAudioSourceInterface.FrameSizeMS) * 5;
 
         Span<float> decodedSamples;
 

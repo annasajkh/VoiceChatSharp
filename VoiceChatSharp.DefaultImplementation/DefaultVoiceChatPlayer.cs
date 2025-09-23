@@ -1,9 +1,9 @@
-﻿using Hexa.NET.SDL3;
+﻿using SoundFlow.Abstracts.Devices;
+using SoundFlow.Enums;
+using SoundFlow.Structs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.Utils;
 using VoiceChatSharp.VoiceChat;
@@ -12,44 +12,19 @@ namespace VoiceChatSharp.DefaultImplementation;
 
 public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 {
-    uint logicalDeviceID;
-    uint physicalDeviceID;
+    int currentPlaybackDeviceIndex;
+    AudioPlaybackDevice? audioPlaybackDevice;
 
-    Dictionary<string, uint> audioDevicesMapping = new();
+    Dictionary<string, int> audioDevicesMapping = new();
 
     bool alreadyInitialized;
     bool isDisposed;
 
     public DefaultVoiceChatPlayer(int sampleRate = 48000, int channels = 2, string? playingDevice = null) : base(sampleRate, channels, 4) // 4 for 32 bit f32 it's 4 bytes
     {
-        if (!SDL.Init(SDLInitFlags.Audio))
-        {
-            unsafe
-            {
-                string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                throw new Exception($"Cannot initialize sdl audio SDL_Error: {errorMessage}");
-            }
-        }
-
         FrameSizeMS = 20;
 
         int sampleFrames = Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample) / Channels / sizeof(float);
-
-        if (!SDL.SetHintWithPriority(SDL.SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, $"{sampleFrames}", SDLHintPriority.Override))
-        {
-            unsafe
-            {
-                string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-
-                throw new Exception($"cannot set SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES SDL_Error: {errorMessage}");
-            }
-        }
-
-        SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
-        sdlAudioSpec.Format = SDLAudioFormat.F32;
-        sdlAudioSpec.Freq = SampleRate;
-        sdlAudioSpec.Channels = Channels;
-
 
         InitDevice(sampleRate, channels, playingDevice);
     }
@@ -60,29 +35,14 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 
         foreach (VoiceChatAudioSource voiceChatAudioSource in VoiceChatAudioSources.Values)
         {
-            if (!voiceChatAudioSource.VoiceChatAudioSourceInterface.DecodedSamplesQueue.TryDequeue(out float[] decodedSample))
+            if (!voiceChatAudioSource.VoiceChatAudioSourceInterface.DecodedSamplesQueue.TryDequeue(out float[]? decodedSample))
             {
                 continue;
             }
 
             if (voiceChatAudioSource.VoiceChatAudioSourceInterface is DefaultVoiceChatAudioSource defaultVoiceChatAudioSource)
             {
-                unsafe
-                {
-                    if (SDL.GetAudioStreamQueued(defaultVoiceChatAudioSource.AudioStream) >= totalSamplesBytes)
-                    {
-                        return;
-                    }
-
-                    fixed (void* decodedSamplePtr = decodedSample)
-                    {
-                        if (!SDL.PutAudioStreamData(defaultVoiceChatAudioSource.AudioStream, decodedSamplePtr, totalSamplesBytes))
-                        {
-                            string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                            Logger.LogWarning($"Cannot put audio stream data SDL_Error: {errorMessage}");
-                        }
-                    }
-                }
+                defaultVoiceChatAudioSource.AudioPlayerQueueProvider?.AddSamples(decodedSample);
             }
             else
             {
@@ -97,10 +57,19 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 
         if (voiceChatAudioSourceInterface is DefaultVoiceChatAudioSource defaultVoiceChatAudioSource)
         {
-            unsafe
+            if (defaultVoiceChatAudioSource.SoundPlayer is null)
             {
-                SDL.BindAudioStream(logicalDeviceID, defaultVoiceChatAudioSource.AudioStream);
+                throw new Exception("Error: defaultVoiceChatAudioSource.SoundPlayer shouldn't be null");
             }
+
+            audioPlaybackDevice?.MasterMixer.AddComponent(defaultVoiceChatAudioSource.SoundPlayer);
+
+            if (audioPlaybackDevice is null)
+            {
+                throw new Exception("Error: audioPlaybackDevice shouldn't be null");
+            }
+
+            defaultVoiceChatAudioSource.AddAPMModifier(audioPlaybackDevice);
         }
         else
         {
@@ -114,10 +83,12 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 
         if (voiceChatAudioSourceInterface is DefaultVoiceChatAudioSource defaultVoiceChatAudioSource)
         {
-            unsafe
+            if (defaultVoiceChatAudioSource.SoundPlayer is null)
             {
-                SDL.UnbindAudioStream(defaultVoiceChatAudioSource.AudioStream);
+                throw new Exception("Error: defaultVoiceChatAudioSource.SoundPlayer shouldn't be null");
             }
+
+            audioPlaybackDevice?.MasterMixer.RemoveComponent(defaultVoiceChatAudioSource.SoundPlayer);
         }
         else
         {
@@ -125,46 +96,40 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
         }
     }
 
-    void InitDevice(int sampleRate, int channels, string? playbackDevice = null)
+    void InitDevice(int sampleRate, int channels, string? playbackDeviceName = null)
     {
-        unsafe
+        if (alreadyInitialized)
         {
-            if (alreadyInitialized)
+            audioPlaybackDevice?.Stop();
+            audioPlaybackDevice?.Dispose();
+        }
+
+
+        AudioFormat audioFormat = new()
+        {
+            SampleRate = SampleRate,
+            Channels = Channels,
+            Format = SampleFormat.F32
+        };
+
+        if (!(playbackDeviceName is null))
+        {
+            RefreshAudioDeviceMapping();
+
+            if (!audioDevicesMapping.ContainsKey(playbackDeviceName))
             {
-                SDL.CloseAudioDevice(logicalDeviceID);
+                throw new Exception($"There is no playback device with the name {playbackDeviceName}");
             }
 
-            SDLAudioSpec sdlAudioSpec = new SDLAudioSpec();
-            sdlAudioSpec.Format = SDLAudioFormat.F32;
-            sdlAudioSpec.Freq = SampleRate;
-            sdlAudioSpec.Channels = Channels;
+            audioPlaybackDevice = Global.AudioEngine.InitializePlaybackDevice(Global.AudioEngine.PlaybackDevices[audioDevicesMapping[playbackDeviceName]], audioFormat);
+            currentPlaybackDeviceIndex = audioDevicesMapping[playbackDeviceName];
+        }
+        else
+        {
+            DeviceInfo defaultPlaybackDeviceInfo = Global.AudioEngine.PlaybackDevices.FirstOrDefault(device => device.IsDefault);
 
-            if (!(playbackDevice is null))
-            {
-                RefreshAudioDeviceMapping();
-
-                if (!audioDevicesMapping.ContainsKey(playbackDevice))
-                {
-                    throw new Exception($"There is no playback device with the name {playbackDevice}");
-                }
-
-                physicalDeviceID = audioDevicesMapping[playbackDevice];
-                logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
-            }
-            else
-            {
-                physicalDeviceID = 0xFFFFFFFFu;
-                logicalDeviceID = SDL.OpenAudioDevice(physicalDeviceID, &sdlAudioSpec);
-            }
-
-            if (alreadyInitialized && Playing)
-            {
-                if (!SDL.ResumeAudioDevice(logicalDeviceID))
-                {
-                    string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                    throw new Exception($"Failed to start logical audio device SDL_Error: {errorMessage}");
-                }
-            }
+            audioPlaybackDevice = Global.AudioEngine.InitializePlaybackDevice(defaultPlaybackDeviceInfo, audioFormat);
+            currentPlaybackDeviceIndex = Array.IndexOf(Global.AudioEngine.PlaybackDevices, defaultPlaybackDeviceInfo);
         }
 
         alreadyInitialized = true;
@@ -174,23 +139,9 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
     {
         audioDevicesMapping.Clear();
 
-        unsafe
+        foreach (DeviceInfo deviceInfo in Global.AudioEngine.PlaybackDevices)
         {
-            int playbackDeviceCount;
-            uint* rawPlaybackDeviceIDs = SDL.GetAudioPlaybackDevices(&playbackDeviceCount);
-
-            if (rawPlaybackDeviceIDs == (uint*)IntPtr.Zero)
-            {
-                string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                throw new Exception($"Cannot get audio playback devices SDL_Error: {errorMessage}");
-            }
-
-            Span<uint> playbackDeviceIDs = new Span<uint>(rawPlaybackDeviceIDs, playbackDeviceCount);
-
-            for (int i = 0; i < playbackDeviceIDs.Length; i++)
-            {
-                audioDevicesMapping.Add(SDL.GetAudioDeviceNameS(playbackDeviceIDs[i]), playbackDeviceIDs[i]);
-            }
+            audioDevicesMapping.Add(deviceInfo.Name, Array.IndexOf(Global.AudioEngine.PlaybackDevices, deviceInfo));
         }
     }
 
@@ -203,37 +154,12 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 
     public override void SetCurrentPlaybackDevice(string name)
     {
-        if (name == "System Default")
-        {
-            InitDevice(SampleRate, Channels);
-        }
-        else
-        {
-            InitDevice(SampleRate, Channels, name);
-        }
-
-        Thread.Sleep(100);
+        InitDevice(SampleRate, Channels, name);
     }
 
     public override string GetCurrentPlaybackDeviceName()
     {
-        if (physicalDeviceID == 0xFFFFFFFFu)
-        {
-            return "System Default";
-        }
-
-        string currentPlaybackAudioDeviceName = SDL.GetAudioDeviceNameS(physicalDeviceID);
-
-        if (currentPlaybackAudioDeviceName is null)
-        {
-            unsafe
-            {
-                string errorMessage = Marshal.PtrToStringAnsi((IntPtr)SDL.GetError());
-                throw new Exception($"Cannot get current playback audio device name SDL_Error: {errorMessage}");
-            }
-        }
-
-        return currentPlaybackAudioDeviceName;
+        return Global.AudioEngine.PlaybackDevices[currentPlaybackDeviceIndex].Name;
     }
 
     /// <summary>
@@ -243,10 +169,7 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
     {
         Playing = true;
 
-        unsafe
-        {
-            SDL.ResumeAudioDevice(logicalDeviceID);
-        }
+        audioPlaybackDevice?.Start();
     }
 
     /// <summary>
@@ -257,9 +180,9 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
     {
         Volume = volume;
 
-        unsafe
+        if (audioPlaybackDevice is AudioPlaybackDevice device)
         {
-            SDL.SetAudioDeviceGain(logicalDeviceID, Volume);
+            device.MasterMixer.Volume = volume;
         }
     }
 
@@ -270,10 +193,7 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
     {
         Playing = false;
 
-        unsafe
-        {
-            SDL.PauseAudioDevice(logicalDeviceID);
-        }
+        audioPlaybackDevice?.Stop();
     }
 
     /// <summary>
@@ -288,9 +208,6 @@ public class DefaultVoiceChatPlayer : VoiceChatPlayerInterface
 
         isDisposed = true;
 
-        unsafe
-        {
-            SDL.CloseAudioDevice(logicalDeviceID);
-        }
+        audioPlaybackDevice?.Dispose();
     }
 }

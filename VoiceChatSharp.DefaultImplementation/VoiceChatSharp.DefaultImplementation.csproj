@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WarningsAsErrors>nullable</WarningsAsErrors>
@@ -9,11 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
+    <PackageReference Include="SoundFlow" Version="1.2.1" />
+    <PackageReference Include="SoundFlow.Extensions.WebRtc.Apm" Version="1.0.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hexa.NET.SDL3" Version="1.2.16" />
+    <ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
   </ItemGroup>
 
 </Project>
