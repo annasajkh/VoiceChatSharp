@@ -159,6 +159,7 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
         else
         {
             VoiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
+            VoiceChatPlayer.PlayAudioSource(serverToClientEncodedAudioPacket.ID);
             VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
         }
     }
