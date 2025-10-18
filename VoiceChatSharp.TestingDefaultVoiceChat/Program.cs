@@ -1,5 +1,4 @@
 ﻿using VoiceChatSharp.DefaultImplementation;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.TestingVoiceChat;
@@ -51,7 +50,20 @@ internal class Program
 
 
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(1);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(2);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(3);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(4);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(5);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(6);
+
         voiceChatPlayer.PlayAudioSource(0);
+        voiceChatPlayer.PlayAudioSource(1);
+        voiceChatPlayer.PlayAudioSource(2);
+        voiceChatPlayer.PlayAudioSource(3);
+        voiceChatPlayer.PlayAudioSource(4);
+        voiceChatPlayer.PlayAudioSource(5);
+        voiceChatPlayer.PlayAudioSource(6);
 
         voiceChatPlayer.Play();
         voiceChatPlayer.SetVolume(2);
@@ -61,12 +73,18 @@ internal class Program
         {
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
-                EncodedAudioPacket? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
+                byte[]? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
 
-                if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
+                if (encodedAudioPacketResult is byte[] encodedAudioPacket)
                 {
 
-                    voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
+                    voiceChatPlayer.QueueEncodedAudioPacket(0, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(1, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(2, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(3, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(4, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(5, encodedAudioPacket);
+                    voiceChatPlayer.QueueEncodedAudioPacket(6, encodedAudioPacket);
                 }
             }
         }, cancellationTokenSource.Token);

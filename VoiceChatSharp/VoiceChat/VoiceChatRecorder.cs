@@ -1,7 +1,6 @@
 ﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
 using VoiceChatSharp.Interfaces;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 
@@ -22,7 +21,7 @@ public class VoiceChatRecorder : VoiceChat
     VoiceChatRecorderInterface recorderInterface;
     OpusEncoder opusEncoder;
 
-    public ConcurrentQueue<EncodedAudioPacket> encodedAudioPacketsQueue = new();
+    public ConcurrentQueue<byte[]> encodedAudioPacketsQueue = new();
 
     byte[] encodedSamples;
 
@@ -82,7 +81,7 @@ public class VoiceChatRecorder : VoiceChat
     /// Get the first encoded samples recorded from the mic.
     /// </summary>
     /// <returns>The encoded samples.</returns>
-    public EncodedAudioPacket? GetTheFirstEncodedAudioPacket()
+    public byte[]? GetTheFirstEncodedAudioPacket()
     {
         if (encodedAudioPacketsQueue.Count is 0)
         {
@@ -90,7 +89,7 @@ public class VoiceChatRecorder : VoiceChat
             return null;
         }
 
-        if (!encodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
+        if (!encodedAudioPacketsQueue.TryDequeue(out byte[] encodedAudioPacket))
         {
             //Logger.LogError("Cannot get the first encoded samples");
             return null;
@@ -129,7 +128,7 @@ public class VoiceChatRecorder : VoiceChat
 
         Span<byte> encodedSlice = encodedOutputSpan.Slice(0, encodedOutputLength);
 
-        encodedAudioPacketsQueue.Enqueue(new EncodedAudioPacket(DateTimeOffset.Now.ToUnixTimeMilliseconds(), encodedSlice.ToArray()));
+        encodedAudioPacketsQueue.Enqueue(encodedSlice.ToArray());
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 ﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.Interfaces;
@@ -22,7 +21,7 @@ public class VoiceChatAudioSourceInterface : IDisposable
     /// <summary>
     /// Contains encoded samples encoded by opus
     /// </summary>
-    public ConcurrentQueue<EncodedAudioPacket> EncodedAudioPacketsQueue { get; private set; } = new();
+    public ConcurrentQueue<byte[]> EncodedAudioPacketsQueue { get; private set; } = new();
     public ConcurrentQueue<float[]> DecodedSamplesQueue { get; private set; } = new();
 
     protected bool isDisposed;

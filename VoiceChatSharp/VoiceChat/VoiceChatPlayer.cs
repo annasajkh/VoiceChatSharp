@@ -1,6 +1,5 @@
 ﻿using OpusSharp.Core;
 using VoiceChatSharp.Interfaces;
-using VoiceChatSharp.NetworkStorageData.Shared;
 
 namespace VoiceChatSharp.VoiceChat;
 
@@ -25,11 +24,15 @@ public class VoiceChatPlayer : VoiceChat
         updateThread.Start();
     }
 
-    public void QueueEncodedAudioPacket(int id, EncodedAudioPacket encodedAudioPacket)
+    public void QueueEncodedAudioPacket(int id, byte[] encodedAudioPacket)
     {
         if (voiceChatPlayerInterface.VoiceChatAudioSources.ContainsKey(id))
         {
             voiceChatPlayerInterface.VoiceChatAudioSources[id].EnqueueEncodedAudioPacket(encodedAudioPacket);
+        }
+        else
+        {
+            throw new Exception($"Error: VoiceChatPlayer doesn't contain VoiceChatAudioSource with the id: {id}");
         }
     }
 
