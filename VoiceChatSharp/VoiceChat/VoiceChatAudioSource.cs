@@ -10,10 +10,9 @@ public class VoiceChatAudioSource : IDisposable
 
     public long TimeForAudioSamplesToArrive { get; private set; }
 
-    int sampleNeededToAvoidAudioDeviceFromGettingDried;
-    bool isSampling;
-
     bool isDisposed;
+
+    Queue<float[]> jitterBuffer = new();
 
     public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
     {
@@ -24,7 +23,6 @@ public class VoiceChatAudioSource : IDisposable
     {
         VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Enqueue(encodedAudioPacket);
     }
-
 
     /// <summary>
     /// Set the volume of the audio source
@@ -45,25 +43,6 @@ public class VoiceChatAudioSource : IDisposable
 
     public void Update()
     {
-        if (!isSampling)
-        {
-            if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried)
-            {
-                return;
-            }
-            else
-            {
-                isSampling = true;
-            }
-        }
-        else
-        {
-            if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried / 2)
-            {
-                isSampling = false;
-            }
-        }
-
         if (!VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
         {
             return;
@@ -76,19 +55,25 @@ public class VoiceChatAudioSource : IDisposable
 
         TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
 
-        sampleNeededToAvoidAudioDeviceFromGettingDried = (int)(TimeForAudioSamplesToArrive / VoiceChatAudioSourceInterface.FrameSizeMS) * 5;
-
-        Span<float> decodedSamples;
-
         int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, VoiceChatAudioSourceInterface.FrameSizeMS, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
 
-        unsafe
-        {
-            decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
-        }
+        float[] decodedSamples = new float[totalSamplesBytes / sizeof(float)];
 
         VoiceChatAudioSourceInterface.OpusDecoder.Decode(encodedAudioPacket.Data, encodedAudioPacket.Data.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
-        VoiceChatAudioSourceInterface.Update();
+
+        jitterBuffer.Enqueue(decodedSamples);
+
+        if (TimeForAudioSamplesToArrive > 100)
+        {
+            if (jitterBuffer.Count >= TimeForAudioSamplesToArrive / 5)
+            {
+                VoiceChatAudioSourceInterface.Update(jitterBuffer.Dequeue());
+            }
+        }
+        else
+        {
+            VoiceChatAudioSourceInterface.Update(jitterBuffer.Dequeue());
+        }
     }
 
     /// <summary>
