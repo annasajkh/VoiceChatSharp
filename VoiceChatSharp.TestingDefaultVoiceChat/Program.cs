@@ -1,5 +1,4 @@
 ﻿using VoiceChatSharp.DefaultImplementation;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.VoiceChat;
 
 namespace VoiceChatSharp.TestingVoiceChat;
@@ -66,9 +65,9 @@ internal class Program
         {
             while (!cancellationTokenSource.Token.IsCancellationRequested)
             {
-                EncodedAudioPacket? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
+                byte[]? encodedAudioPacketResult = voiceChatRecorder.GetTheFirstEncodedAudioPacket();
 
-                if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
+                if (encodedAudioPacketResult is byte[] encodedAudioPacket)
                 {
                     voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));
                     voiceChatPlayer.QueueEncodedAudioPacket(1, new EncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data));

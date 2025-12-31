@@ -19,7 +19,7 @@ public class VoiceChatAudioSourceInterface : IDisposable
     /// <summary>
     /// Contains encoded samples encoded by opus
     /// </summary>
-    public ConcurrentQueue<EncodedAudioPacket> EncodedAudioPacketsQueue { get; private set; } = new();
+    public ConcurrentQueue<byte[]> EncodedAudioPacketsQueue { get; private set; } = new();
     public ConcurrentQueue<float[]> DecodedSamplesQueue { get; private set; } = new();
 
     protected bool isDisposed;

@@ -4,7 +4,6 @@ using System.Timers;
 using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.NetworkPacket.ClientToServer;
 using VoiceChatSharp.NetworkPacket.ServerToClient;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 using VoiceChatSharp.VoiceChat;
 using Timer = System.Timers.Timer;
@@ -38,8 +37,8 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
         Deafened = deafened;
         Volume = volume;
 
-        this.VoiceChatRecorder = voiceChatRecorder;
-        this.VoiceChatPlayer = voiceChatPlayer;
+        VoiceChatRecorder = voiceChatRecorder;
+        VoiceChatPlayer = voiceChatPlayer;
 
         joiningAttemptTimer = new Timer(100);
 
@@ -154,7 +153,7 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
     {
         if (VoiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
         {
-            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
+            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, serverToClientEncodedAudioPacket.Data);
         }
         else
         {
@@ -181,12 +180,12 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
     {
         if (IsInServer && serverPeer != null)
         {
-            EncodedAudioPacket? encodedAudioPacketResult = VoiceChatRecorder.GetTheFirstEncodedAudioPacket();
+            byte[]? encodedAudioPacketResult = VoiceChatRecorder.GetTheFirstEncodedAudioPacket();
 
-            if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
+            if (encodedAudioPacketResult is byte[] encodedAudioPacket)
             {
                 // Sending Encoded Audio Flow 1
-                SendPacket(new ClientToServerEncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data), serverPeer, DeliveryMethod.ReliableSequenced);
+                SendPacket(new ClientToServerEncodedAudioPacket(encodedAudioPacket), serverPeer, DeliveryMethod.ReliableSequenced);
             }
         }
 

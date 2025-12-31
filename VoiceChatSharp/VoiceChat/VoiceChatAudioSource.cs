@@ -1,5 +1,4 @@
 ﻿using VoiceChatSharp.Interfaces;
-using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.VoiceChat;
@@ -19,7 +18,7 @@ public class VoiceChatAudioSource : IDisposable
         VoiceChatAudioSourceInterface = voiceChatAudioSourceInterface;
     }
 
-    public void EnqueueEncodedAudioPacket(EncodedAudioPacket encodedAudioPacket)
+    public void EnqueueEncodedAudioPacket(byte[] encodedAudioPacket)
     {
         VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Enqueue(encodedAudioPacket);
     }
