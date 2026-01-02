@@ -51,11 +51,15 @@ internal class Program
 
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(0);
         voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(1);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(2);
+        voiceChatPlayer.AddVoiceChatAudioSource<DefaultVoiceChatAudioSource>(3);
 
         voiceChatPlayer.PlayAudioSource(0);
         voiceChatPlayer.PlayAudioSource(1);
+        voiceChatPlayer.PlayAudioSource(2);
+        voiceChatPlayer.PlayAudioSource(3);
 
-        voiceChatPlayer.SetVolume(5f);
+        voiceChatPlayer.SetVolume(1f);
 
         voiceChatPlayer.Play();
 
@@ -70,6 +74,8 @@ internal class Program
                 {
                     voiceChatPlayer.QueueEncodedAudioPacket(0, new EncodedAudioPacket(encodedAudioPacket.CreationDate, encodedAudioPacket.Data));
                     voiceChatPlayer.QueueEncodedAudioPacket(1, new EncodedAudioPacket(encodedAudioPacket.CreationDate, encodedAudioPacket.Data));
+                    voiceChatPlayer.QueueEncodedAudioPacket(2, new EncodedAudioPacket(encodedAudioPacket.CreationDate, encodedAudioPacket.Data));
+                    voiceChatPlayer.QueueEncodedAudioPacket(3, new EncodedAudioPacket(encodedAudioPacket.CreationDate, encodedAudioPacket.Data));
                 }
             }
         }, cancellationTokenSource.Token);
