@@ -6,9 +6,7 @@ using SoundFlow.Extensions.WebRtc.Apm;
 using SoundFlow.Extensions.WebRtc.Apm.Modifiers;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
-using System;
 using VoiceChatSharp.Interfaces;
-using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.DefaultImplementation;
 
@@ -36,8 +34,9 @@ public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
 
     public void AddAPMModifier(AudioPlaybackDevice audioPlaybackDevice)
     {
-        apmModifier = new(
+        apmModifier = new WebRtcApmModifier(
             device: audioPlaybackDevice,
+
             // Echo Cancellation (AEC) settings
             aecEnabled: true,
             aecMobileMode: false, // Desktop mode is generally more robust
@@ -73,12 +72,11 @@ public class DefaultVoiceChatAudioSource : VoiceChatAudioSourceInterface
         SoundPlayer?.AddModifier(apmModifier);
     }
 
-    public override void Update()
+    public override void Update(float[] decodedSample)
     {
         unsafe
         {
-            Span<float> decodedSamples = new Span<float>((void*)DecodedSamplesPtr, Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample / sizeof(float)));
-            DecodedSamplesQueue.Enqueue(decodedSamples.ToArray());
+            DecodedSamplesQueue.Enqueue(decodedSample);
         }
     }
 

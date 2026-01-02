@@ -10,11 +10,11 @@ public struct EncodedAudioPacket
     /// <summary>
     /// The time the packet was created in ms
     /// </summary>
-    public long PacketTimeMS { get; private set; }
+    public long CreationDate { get; private set; }
 
-    public EncodedAudioPacket(long packetTimeMS, byte[] data)
+    public EncodedAudioPacket(long creationDate, byte[] data)
     {
-        PacketTimeMS = packetTimeMS;
+        CreationDate = creationDate;
         Data = data;
     }
 }

@@ -1,8 +1,6 @@
 ﻿using OpusSharp.Core;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using VoiceChatSharp.NetworkStorageData.Shared;
-using VoiceChatSharp.Utils;
 
 namespace VoiceChatSharp.Interfaces;
 
@@ -14,7 +12,6 @@ public class VoiceChatAudioSourceInterface : IDisposable
     public bool Playing { get; protected set; }
     public float Volume { get; protected set; }
 
-    public unsafe IntPtr DecodedSamplesPtr { get; private set; }
     public int FrameSizeMS { get; private set; }
 
     public OpusDecoder OpusDecoder { get; set; }
@@ -38,8 +35,6 @@ public class VoiceChatAudioSourceInterface : IDisposable
         BytesPerSample = bytesPerSample;
         Volume = 1;
         FrameSizeMS = frameSizeMS;
-
-        DecodedSamplesPtr = Marshal.AllocHGlobal(Helper.GetTotalBytes(SampleRate, FrameSizeMS, Channels, BytesPerSample));
     }
 
 
@@ -64,7 +59,7 @@ public class VoiceChatAudioSourceInterface : IDisposable
     /// <summary>
     /// The last update after opus decoding
     /// </summary>
-    public virtual void Update()
+    public virtual void Update(float[] decodedSample)
     {
 
     }
@@ -80,11 +75,5 @@ public class VoiceChatAudioSourceInterface : IDisposable
         }
 
         isDisposed = true;
-
-        if (DecodedSamplesPtr != IntPtr.Zero)
-        {
-            Marshal.FreeHGlobal(DecodedSamplesPtr);
-            DecodedSamplesPtr = IntPtr.Zero;
-        }
     }
 }

@@ -1,4 +1,7 @@
-﻿using VoiceChatSharp.Interfaces;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading;
+using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
@@ -9,10 +12,6 @@ public class VoiceChatAudioSource : IDisposable
     public VoiceChatAudioSourceInterface VoiceChatAudioSourceInterface { get; private set; }
 
     public long TimeForAudioSamplesToArrive { get; private set; }
-
-    int sampleNeededToAvoidAudioDeviceFromGettingDried;
-    bool isSampling;
-
     bool isDisposed;
 
     public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
@@ -24,7 +23,6 @@ public class VoiceChatAudioSource : IDisposable
     {
         VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Enqueue(encodedAudioPacket);
     }
-
 
     /// <summary>
     /// Set the volume of the audio source
@@ -45,25 +43,6 @@ public class VoiceChatAudioSource : IDisposable
 
     public void Update()
     {
-        if (!isSampling)
-        {
-            if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried)
-            {
-                return;
-            }
-            else
-            {
-                isSampling = true;
-            }
-        }
-        else
-        {
-            if (VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.Count < sampleNeededToAvoidAudioDeviceFromGettingDried / 2)
-            {
-                isSampling = false;
-            }
-        }
-
         if (!VoiceChatAudioSourceInterface.EncodedAudioPacketsQueue.TryDequeue(out EncodedAudioPacket encodedAudioPacket))
         {
             return;
@@ -74,21 +53,16 @@ public class VoiceChatAudioSource : IDisposable
             return;
         }
 
-        TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
-
-        sampleNeededToAvoidAudioDeviceFromGettingDried = (int)(TimeForAudioSamplesToArrive / VoiceChatAudioSourceInterface.FrameSizeMS) * 5;
-
-        Span<float> decodedSamples;
+        TimeForAudioSamplesToArrive = Stopwatch.GetTimestamp() - encodedAudioPacket.CreationDate;
+        TimeForAudioSamplesToArrive = (long)(((double)(TimeForAudioSamplesToArrive) / (double)(Stopwatch.Frequency)) * 1000);
 
         int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, VoiceChatAudioSourceInterface.FrameSizeMS, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
 
-        unsafe
-        {
-            decodedSamples = new Span<float>((void*)VoiceChatAudioSourceInterface.DecodedSamplesPtr, totalSamplesBytes / sizeof(float));
-        }
+        float[] decodedSamples = new float[totalSamplesBytes / sizeof(float)];
 
         VoiceChatAudioSourceInterface.OpusDecoder.Decode(encodedAudioPacket.Data, encodedAudioPacket.Data.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
-        VoiceChatAudioSourceInterface.Update();
+
+        VoiceChatAudioSourceInterface.Update(decodedSamples);
     }
 
     /// <summary>

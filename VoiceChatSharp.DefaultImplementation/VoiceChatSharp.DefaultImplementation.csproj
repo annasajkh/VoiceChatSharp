@@ -1,20 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <WarningsAsErrors>nullable</WarningsAsErrors>
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<WarningsAsErrors>nullable</WarningsAsErrors>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SoundFlow" Version="1.2.1" />
-    <PackageReference Include="SoundFlow.Extensions.WebRtc.Apm" Version="1.0.4" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="SoundFlow" Version="1.3.0" />
+		<PackageReference Include="SoundFlow.Extensions.WebRtc.Apm" Version="1.3.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\VoiceChatSharp\VoiceChatSharp.csproj" />
+	</ItemGroup>
 
 </Project>
