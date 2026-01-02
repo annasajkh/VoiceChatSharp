@@ -1,4 +1,7 @@
-﻿using VoiceChatSharp.Interfaces;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading;
+using VoiceChatSharp.Interfaces;
 using VoiceChatSharp.NetworkStorageData.Shared;
 using VoiceChatSharp.Utils;
 
@@ -9,10 +12,7 @@ public class VoiceChatAudioSource : IDisposable
     public VoiceChatAudioSourceInterface VoiceChatAudioSourceInterface { get; private set; }
 
     public long TimeForAudioSamplesToArrive { get; private set; }
-
     bool isDisposed;
-
-    Queue<float[]> jitterBuffer = new();
 
     public VoiceChatAudioSource(VoiceChatAudioSourceInterface voiceChatAudioSourceInterface)
     {
@@ -53,7 +53,8 @@ public class VoiceChatAudioSource : IDisposable
             return;
         }
 
-        TimeForAudioSamplesToArrive = DateTimeOffset.Now.ToUnixTimeMilliseconds() - encodedAudioPacket.PacketTimeMS;
+        TimeForAudioSamplesToArrive = Stopwatch.GetTimestamp() - encodedAudioPacket.CreationDate;
+        TimeForAudioSamplesToArrive = (long)(((double)(TimeForAudioSamplesToArrive) / (double)(Stopwatch.Frequency)) * 1000);
 
         int totalSamplesBytes = Helper.GetTotalBytes(VoiceChatAudioSourceInterface.SampleRate, VoiceChatAudioSourceInterface.FrameSizeMS, VoiceChatAudioSourceInterface.Channels, VoiceChatAudioSourceInterface.BytesPerSample);
 
@@ -61,19 +62,7 @@ public class VoiceChatAudioSource : IDisposable
 
         VoiceChatAudioSourceInterface.OpusDecoder.Decode(encodedAudioPacket.Data, encodedAudioPacket.Data.Length, decodedSamples, totalSamplesBytes / sizeof(float) / VoiceChatAudioSourceInterface.Channels, false);
 
-        jitterBuffer.Enqueue(decodedSamples);
-
-        if (TimeForAudioSamplesToArrive > 100)
-        {
-            if (jitterBuffer.Count >= TimeForAudioSamplesToArrive / 5)
-            {
-                VoiceChatAudioSourceInterface.Update(jitterBuffer.Dequeue());
-            }
-        }
-        else
-        {
-            VoiceChatAudioSourceInterface.Update(jitterBuffer.Dequeue());
-        }
+        VoiceChatAudioSourceInterface.Update(decodedSamples);
     }
 
     /// <summary>

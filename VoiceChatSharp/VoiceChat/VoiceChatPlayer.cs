@@ -14,6 +14,9 @@ public class VoiceChatPlayer : VoiceChat
     Thread updateThread;
 
     bool isDisposed;
+    double averagePacketArriveTimeMS;
+
+    List<double> packetArriveTimesMS = new();
 
     public VoiceChatPlayer(VoiceChatPlayerInterface voiceChatPlayerInterface) : base(voiceChatPlayerInterface.SampleRate, voiceChatPlayerInterface.Channels, voiceChatPlayerInterface.BytesPerSample)
     {
@@ -23,6 +26,16 @@ public class VoiceChatPlayer : VoiceChat
 
         updateThread = new Thread(UpdateThread);
         updateThread.Start();
+
+
+        Task.Factory.StartNew(() =>
+        {
+            while (!isDisposed)
+            {
+                Thread.Sleep(100);
+                Console.WriteLine($"Average Packet Arrive Time: {averagePacketArriveTimeMS}ms");
+            }
+        });
     }
 
     public void QueueEncodedAudioPacket(int id, EncodedAudioPacket encodedAudioPacket)
@@ -139,6 +152,13 @@ public class VoiceChatPlayer : VoiceChat
                 foreach (var voiceChatAudioSource in voiceChatPlayerInterface.VoiceChatAudioSources.Values)
                 {
                     voiceChatAudioSource.Update();
+                    packetArriveTimesMS.Add(voiceChatAudioSource.TimeForAudioSamplesToArrive);
+                }
+
+                if (packetArriveTimesMS.Count > 100)
+                {
+                    averagePacketArriveTimeMS = Math.Round(packetArriveTimesMS.Average());
+                    packetArriveTimesMS.Clear();
                 }
 
                 voiceChatPlayerInterface.Update();

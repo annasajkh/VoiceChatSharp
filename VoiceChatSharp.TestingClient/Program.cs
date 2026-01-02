@@ -1,4 +1,5 @@
-﻿using VoiceChatSharp.DefaultImplementation;
+﻿using System.Diagnostics;
+using VoiceChatSharp.DefaultImplementation;
 using VoiceChatSharp.Networking;
 using VoiceChatSharp.VoiceChat;
 

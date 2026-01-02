@@ -154,13 +154,13 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
     {
         if (VoiceChatPlayer.ContainsVoiceChatAudioSource(serverToClientEncodedAudioPacket.ID))
         {
-            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
+            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.CreationDate, serverToClientEncodedAudioPacket.Data));
         }
         else
         {
             VoiceChatPlayer.AddVoiceChatAudioSource<T>(serverToClientEncodedAudioPacket.ID);
             VoiceChatPlayer.PlayAudioSource(serverToClientEncodedAudioPacket.ID);
-            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.PacketTimeMS, serverToClientEncodedAudioPacket.Data));
+            VoiceChatPlayer.QueueEncodedAudioPacket(serverToClientEncodedAudioPacket.ID, new EncodedAudioPacket(serverToClientEncodedAudioPacket.CreationDate, serverToClientEncodedAudioPacket.Data));
         }
     }
 
@@ -186,7 +186,7 @@ public class VoiceChatClient<T> : Network, IDisposable where T : VoiceChatAudioS
             if (encodedAudioPacketResult is EncodedAudioPacket encodedAudioPacket)
             {
                 // Sending Encoded Audio Flow 1
-                SendPacket(new ClientToServerEncodedAudioPacket(encodedAudioPacket.PacketTimeMS, encodedAudioPacket.Data), serverPeer, DeliveryMethod.ReliableSequenced);
+                SendPacket(new ClientToServerEncodedAudioPacket(encodedAudioPacket.CreationDate, encodedAudioPacket.Data), serverPeer, DeliveryMethod.ReliableSequenced);
             }
         }
 
